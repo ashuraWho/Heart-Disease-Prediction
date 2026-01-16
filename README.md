@@ -63,6 +63,11 @@ Advanced predictive modeling.
 - **Motivations:** For complex patterns, we use a Multi-Layer Perceptron.
 - **Robustness:** We use heavy regularization (L2, Dropout, Batch Normalization) to prevent the neural network from overfitting on this relatively small tabular dataset.
 
+### Module 05: Real-World Inference
+The final utility of the project.
+- **What it does:** This module loads the best-performing model and the preprocessor to predict the risk for a **new patient** based on clinical input.
+- **Value:** It demonstrates the transition from a training pipeline to a functional medical decision-support tool.
+
 ---
 
 ## 🚀 Getting Started
@@ -87,6 +92,23 @@ Always run the modules in sequence:
 2. `python notebooks/02_ML_Classic.py`
 3. `python notebooks/03_Explainability.py`
 4. `python notebooks/04_Deep_Learning.py`
+5. `python notebooks/05_Inference.py`
+
+---
+
+## 🏥 How to Predict Heart Disease for a New Patient
+
+Once you have run the training modules (01 and 02), you can use `notebooks/05_Inference.py` to make predictions on new data.
+
+### Steps to predict:
+1.  Open `notebooks/05_Inference.py`.
+2.  Locate the `new_patient_data` dictionary.
+3.  Modify the clinical values (Age, Cholesterol, etc.) to match your patient's data.
+4.  Run the script:
+    ```bash
+    python notebooks/05_Inference.py
+    ```
+5.  The script will output the probability of heart disease presence and the final diagnostic recommendation.
 
 ---
 
