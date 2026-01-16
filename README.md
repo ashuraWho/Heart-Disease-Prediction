@@ -63,3 +63,18 @@ The dataset used is `Heart_Disease_Prediction.csv`, located in the `data/` direc
 ## Results
 
 Model performance is evaluated with a focus on **Recall**, which is critical in medical diagnostics to minimize false negatives. Detailed metrics and plots (ROC curves, confusion matrices) are generated for each approach.
+
+## Troubleshooting (macOS / Anaconda)
+
+If you encounter a **segmentation fault** or crashes when running the deep learning module on macOS (especially with Anaconda), try the following:
+
+1.  **Environment Variables**: The scripts already include `KMP_DUPLICATE_LIB_OK=True`, `TF_ENABLE_ONEDNN_OPTS=0`, and `OMP_NUM_THREADS=1` to improve stability and prevent OpenMP conflicts.
+2.  **Force CPU**: If the crash persists, you can force TensorFlow to use the CPU by adding `os.environ['CUDA_VISIBLE_DEVICES'] = '-1'` at the top of `04_Deep_Learning.py`.
+3.  **Clean Environment**: Anaconda's `numpy` (which uses MKL) often conflicts with `tensorflow`. It is highly recommended to:
+    -   Create a new conda environment: `conda create -n heart_disease python=3.10`
+    -   Activate it: `conda activate heart_disease`
+    -   Install dependencies ONLY via pip: `pip install -r requirements.txt`
+4.  **Apple Silicon (M1/M2/M3/M4)**: If you are on an ARM-based Mac, ensure you are using an ARM64 version of Python. For optimized performance, consider installing:
+    ```bash
+    pip install tensorflow-macos tensorflow-metal
+    ```

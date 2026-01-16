@@ -7,6 +7,9 @@
 # 1. IMPORT LIBRARIES   # Import Libraries Header
 # ===================== # Header Section
 
+import os # Import os for environment variable manipulation
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+
 from pathlib import Path # Import Path for filesystem path manipulation
 
 import pandas as pd                  # Import pandas for data manipulation and tabular data handling

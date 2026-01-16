@@ -3,6 +3,9 @@
 # Heart Disease Prediction                                     # Global Header
 # ============================================================ # Global Header
 
+import os # Import os for environment variable manipulation
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+
 from pathlib import Path # Import Path for robust filesystem path manipulation
 import numpy as np # Import numpy for numerical operations and array handling
 import pandas as pd # Import pandas for data manipulation and tabular data

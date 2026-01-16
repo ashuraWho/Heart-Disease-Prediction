@@ -3,6 +3,9 @@
 # Heart Disease Prediction                                     # Global Header
 # ============================================================ # Global Header
 
+import os # Import os for environment variable manipulation
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+
 from pathlib import Path # Import Path for robust filesystem path manipulation
 import numpy as np # Import numpy for numerical operations and array handling
 import pandas as pd # Import pandas for data manipulation and tabular data
@@ -112,23 +115,31 @@ else: # For other models (like KNN or SVM)
 
 # Handle SHAP output dimensions (multi-class vs binary)
 # If SHAP values have an extra dimension for classes, select the positive class (index 1)
-if len(shap_values.values.shape) == 3: # Check if output is (samples, features, classes)
-    shap_obj = shap_values[:, :, 1] # Select SHAP values for the 'Presence' class
-else: # If output is already (samples, features)
-    shap_obj = shap_values # Use values as they are
+try:
+    if hasattr(shap_values, "values") and len(shap_values.values.shape) == 3: # Check if output is (samples, features, classes)
+        shap_obj = shap_values[:, :, 1] # Select SHAP values for the 'Presence' class
+    elif not hasattr(shap_values, "values") and len(shap_values.shape) == 3: # Case for raw numpy array
+        shap_obj = shap_values[:, :, 1] # Select positive class
+    else: # If output is already (samples, features)
+        shap_obj = shap_values # Use as is
+except Exception: # Fallback
+    shap_obj = shap_values # Default to original object
+
+# Extract raw values for summary plots if it's an Explanation object
+shap_vals_raw = shap_obj.values if hasattr(shap_obj, "values") else shap_obj
 
 # ===================== # Header Section
 # SHAP SUMMARY          # SHAP Summary Header
 # ===================== # Header Section
 
 shap.summary_plot( # Create a SHAP summary dot plot
-    shap_obj.values, # Use calculated SHAP values
+    shap_vals_raw, # Use raw SHAP values
     X_test, # Use corresponding feature values
     feature_names=feature_names # Provide feature names for labeling
 ) # End of summary_plot
 
 shap.summary_plot( # Create a SHAP summary bar plot (global importance)
-    shap_obj.values, # Use calculated SHAP values
+    shap_vals_raw, # Use raw SHAP values
     X_test, # Use corresponding feature values
     feature_names=feature_names, # Provide feature names
     plot_type="bar" # Specify bar plot type

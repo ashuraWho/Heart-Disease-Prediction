@@ -17,6 +17,11 @@
 # 1. IMPORT LIBRARIES   # Import Libraries Header
 # ===================== # Header Section
 
+import os # Import os for environment variable manipulation
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda (multiple OpenMP runtimes)
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to improve stability on some CPUs
+os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads to 1 to prevent resource-related SegFaults
+
 import random # Import random for reproducibility
 import numpy as np # Import numpy for numerical operations
 import tensorflow as tf # Import tensorflow for deep learning
@@ -220,7 +225,7 @@ plt.show() # Display the plot
 model.save(ARTIFACTS_DIR / "nn_model.keras") # Save the trained Keras model to artifacts
 
 # ===================== # Header Section
-# 13. CONCLUSIONI       # Conclusions Header
+# 13. CONCLUSIONS       # Conclusions Header
 # ===================== # Header Section
 # - On small tabular datasets, DL is often not the best solution # Conclusion 1
 # - Classical ML often:                                         # Classical ML advantages
