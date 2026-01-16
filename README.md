@@ -86,8 +86,15 @@ python -m pip install -r requirements.txt
 pip install -r requirements.txt
 ```
 
-### 3. Execution Order
-Always run the modules in sequence:
+### 3. Unified Dashboard (Recommended)
+You can run the entire system through the integrated CLI dashboard:
+```bash
+python main.py
+```
+This provides a guided menu to run each module, view the clinical glossary, and make predictions.
+
+### 4. Manual Execution Order
+Alternatively, run the modules in sequence:
 1. `python notebooks/01_EDA_Preprocessing.py`
 2. `python notebooks/02_ML_Classic.py`
 3. `python notebooks/03_Explainability.py`

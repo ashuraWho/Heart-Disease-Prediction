@@ -88,19 +88,27 @@ prediction = model.predict(new_patient_processed)[0] # Predict class (0 = Absenc
 probability = model.predict_proba(new_patient_processed)[0] # Predict class probabilities
 
 # ===================== # Header Section
-# RESULTS OUTPUT        # Results Output Header
+# RESULTS & CLINICAL NOTES # Results and Notes Header
 # ===================== # Header Section
 
 print("\n--- PREDICTION RESULTS ---") # Print results header
 if prediction == 1: # Check if heart disease is predicted
     print("RESULT: Presence of Heart Disease detected.") # Print positive result
+    print("\n[CLINICAL SUGGESTIONS]") # Print suggestions header
+    print("- Schedule immediate follow-up with a specialist (Cardiologist).") # Suggestion 1
+    print("- Consider ordering a Stress Test or Echocardiogram.") # Suggestion 2
+    print("- Review risk factors: Blood Pressure, Cholesterol, and Fasting Sugar.") # Suggestion 3
 else: # If heart disease is not predicted
     print("RESULT: No heart disease detected (Absence).") # Print negative result
+    print("\n[PREVENTIVE NOTES]") # Print preventive header
+    print("- Maintain a healthy diet and regular physical activity.") # Note 1
+    print("- Periodic screening is still recommended based on age and family history.") # Note 2
 
-print(f"Confidence (Probability):") # Print probability header
+print(f"\nConfidence (Probability):") # Print probability header
 print(f" - Probability of Absence: {probability[0]:.2%}") # Print probability of no disease
 print(f" - Probability of Presence: {probability[1]:.2%}") # Print probability of disease
 
-print("\n--- MEDICAL NOTE ---") # Print medical note header
-print("This tool is for educational and research support only.") # Print legal disclaimer
-print("Final diagnosis must always be confirmed by a professional cardiologist.") # Print professional recommendation
+print("\n--- IMPORTANT MEDICAL DISCLAIMER ---") # Print disclaimer header
+print("This automated prediction is a statistical estimation provided for educational") # Disclaimer line 1
+print("and research support purposes only. It DOES NOT replace a formal medical exam.") # Disclaimer line 2
+print("Final diagnosis and treatment plans MUST be decided by a qualified cardiologist.") # Disclaimer line 3
