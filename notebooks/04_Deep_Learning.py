@@ -21,10 +21,15 @@ import os # Import os for environment variable manipulation
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda (multiple OpenMP runtimes)
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to improve stability on some CPUs
 os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads to 1 to prevent resource-related SegFaults
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU execution to bypass potentially unstable GPU/Metal drivers on Mac
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce TensorFlow logging noise to focus on errors
 
+print("Importing core libraries...") # Diagnostic print
 import random # Import random for reproducibility
 import numpy as np # Import numpy for numerical operations
+print("Importing TensorFlow... (Potential crash point)") # Diagnostic print
 import tensorflow as tf # Import tensorflow for deep learning
+print("TensorFlow imported successfully.") # Diagnostic print
 
 import pandas as pd # Import pandas for data handling
 
@@ -134,6 +139,7 @@ early_stopping = EarlyStopping( # Define EarlyStopping callback
 # 7. TRAINING           # Training Header
 # ===================== # Header Section
 
+print("Starting model training... (Potential crash point on Mac)") # Diagnostic print
 history = model.fit( # Train the model
     X_train, # Training features
     y_train, # Training labels

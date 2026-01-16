@@ -66,15 +66,24 @@ Model performance is evaluated with a focus on **Recall**, which is critical in 
 
 ## Troubleshooting (macOS / Anaconda)
 
-If you encounter a **segmentation fault** or crashes when running the deep learning module on macOS (especially with Anaconda), try the following:
+If you encounter a **segmentation fault** or crashes when running the deep learning module on macOS (especially with Anaconda base environment), please follow these steps:
 
-1.  **Environment Variables**: The scripts already include `KMP_DUPLICATE_LIB_OK=True`, `TF_ENABLE_ONEDNN_OPTS=0`, and `OMP_NUM_THREADS=1` to improve stability and prevent OpenMP conflicts.
-2.  **Force CPU**: If the crash persists, you can force TensorFlow to use the CPU by adding `os.environ['CUDA_VISIBLE_DEVICES'] = '-1'` at the top of `04_Deep_Learning.py`.
-3.  **Clean Environment**: Anaconda's `numpy` (which uses MKL) often conflicts with `tensorflow`. It is highly recommended to:
-    -   Create a new conda environment: `conda create -n heart_disease python=3.10`
-    -   Activate it: `conda activate heart_disease`
-    -   Install dependencies ONLY via pip: `pip install -r requirements.txt`
-4.  **Apple Silicon (M1/M2/M3/M4)**: If you are on an ARM-based Mac, ensure you are using an ARM64 version of Python. For optimized performance, consider installing:
+1.  **Use the Setup Script**: We have provided a `setup_mac.sh` script to automate the creation of a stable environment. Run:
+    ```bash
+    chmod +x setup_mac.sh
+    ./setup_mac.sh
+    ```
+    After it finishes, activate the environment: `conda activate heart_disease`.
+
+2.  **Environment Variables**: The scripts already include several fixes:
+    - `KMP_DUPLICATE_LIB_OK=True`: Fixes multiple OpenMP runtime conflicts.
+    - `TF_ENABLE_ONEDNN_OPTS=0`: Disables unstable CPU optimizations.
+    - `OMP_NUM_THREADS=1`: Prevents resource-related SegFaults.
+    - `CUDA_VISIBLE_DEVICES=-1`: Forces CPU execution to bypass unstable GPU drivers on Mac.
+
+3.  **Avoid Base Environment**: **Do not run the code in Anaconda's (base) environment.** The base environment is prone to binary conflicts between MKL-linked libraries and pip-installed TensorFlow.
+
+4.  **Apple Silicon (M1/M2/M3/M4)**: For Mac with Apple Silicon, ensure you are in an ARM64 terminal and run:
     ```bash
     pip install tensorflow-macos tensorflow-metal
     ```
