@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt # Import matplotlib for plotting
 import seaborn as sns # Import seaborn for visualization
 
 from tensorflow.keras.models import Sequential # Import Sequential model from Keras
-from tensorflow.keras.layers import Dense, Dropout, BatchNormalization # Import layers for building MLP
+from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, Input # Import layers for building MLP
 from tensorflow.keras.optimizers import Adam # Import Adam optimizer
 from tensorflow.keras.callbacks import EarlyStopping # Import EarlyStopping callback
 from tensorflow.keras.regularizers import l2 # Import L2 regularization
@@ -76,11 +76,11 @@ input_dim = X_train.shape[1] # Get the number of input dimensions (features)
 # Compact MLP designed for small tabular data                  # Architecture comment
 
 model = Sequential([ # Initialize a Sequential Keras model
+    Input(shape=(input_dim,)), # Define the input layer with the correct shape (recommended in Keras 3)
 
     Dense( # Define the first hidden layer
         32, # Number of neurons
         activation="relu", # Use ReLU activation function
-        input_shape=(input_dim,), # Define input shape
         kernel_regularizer=l2(1e-3) # Apply L2 regularization to prevent overfitting
     ), # End of layer
     BatchNormalization(), # Apply Batch Normalization for training stability
@@ -220,7 +220,7 @@ plt.show() # Display the plot
 model.save(ARTIFACTS_DIR / "nn_model.keras") # Save the trained Keras model to artifacts
 
 # ===================== # Header Section
-# 13. CONCLUSIONS       # Conclusions Header
+# 13. CONCLUSIONI       # Conclusions Header
 # ===================== # Header Section
 # - On small tabular datasets, DL is often not the best solution # Conclusion 1
 # - Classical ML often:                                         # Classical ML advantages

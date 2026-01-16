@@ -91,25 +91,44 @@ elif hasattr(model, "feature_importances_"): # Check if the model has feature im
 # SHAP EXPLAINABILITY   # SHAP Explainability Header
 # ===================== # Header Section
 
-if hasattr(model, "feature_importances_"): # If the model is tree-based
-    explainer = shap.TreeExplainer(model) # Use SHAP TreeExplainer for efficiency
-else: # For other types of models
-    explainer = shap.Explainer(model, X_test) # Use general SHAP Explainer (can be slow)
+# Use a robust way to initialize the SHAP explainer
+if hasattr(model, "feature_importances_"): # If the model is tree-based (like Random Forest)
+    explainer = shap.TreeExplainer(model) # Use TreeExplainer for optimized tree analysis
+    shap_values = explainer(X_test) # Calculate SHAP values
+elif hasattr(model, "coef_"): # If the model is linear (like Logistic Regression)
+    explainer = shap.LinearExplainer(model, X_test) # Use LinearExplainer for linear models
+    shap_values = explainer(X_test) # Calculate SHAP values
+else: # For other models (like KNN or SVM)
+    # Use KernelExplainer as a model-agnostic approach
+    # We use a small subset of test data as a background for speed if needed, but here we use X_test
+    # We wrap the prediction function to ensure SHAP can call it
+    if hasattr(model, "predict_proba"): # Prefer probability predictions if available
+        # Wrap predict_proba to return only the positive class probability if necessary,
+        # or handle the multi-class output of SHAP
+        explainer = shap.Explainer(model.predict_proba, X_test) # Initialize general explainer
+    else: # Fallback to hard predictions
+        explainer = shap.Explainer(model.predict, X_test) # Initialize general explainer
+    shap_values = explainer(X_test) # Calculate SHAP values
 
-shap_values = explainer(X_test) # Calculate SHAP values for the test set
+# Handle SHAP output dimensions (multi-class vs binary)
+# If SHAP values have an extra dimension for classes, select the positive class (index 1)
+if len(shap_values.values.shape) == 3: # Check if output is (samples, features, classes)
+    shap_obj = shap_values[:, :, 1] # Select SHAP values for the 'Presence' class
+else: # If output is already (samples, features)
+    shap_obj = shap_values # Use values as they are
 
 # ===================== # Header Section
 # SHAP SUMMARY          # SHAP Summary Header
 # ===================== # Header Section
 
 shap.summary_plot( # Create a SHAP summary dot plot
-    shap_values.values, # Use calculated SHAP values
+    shap_obj.values, # Use calculated SHAP values
     X_test, # Use corresponding feature values
     feature_names=feature_names # Provide feature names for labeling
 ) # End of summary_plot
 
 shap.summary_plot( # Create a SHAP summary bar plot (global importance)
-    shap_values.values, # Use calculated SHAP values
+    shap_obj.values, # Use calculated SHAP values
     X_test, # Use corresponding feature values
     feature_names=feature_names, # Provide feature names
     plot_type="bar" # Specify bar plot type
@@ -122,6 +141,6 @@ shap.summary_plot( # Create a SHAP summary bar plot (global importance)
 patient_idx = 0 # Select an index for a specific patient to explain
 
 shap.plots.waterfall( # Create a waterfall plot for local explanation
-    shap_values[patient_idx], # Provide SHAP values for the specific patient
+    shap_obj[patient_idx], # Provide SHAP values for the specific patient
     max_display=15 # Limit the number of displayed features
 ) # End of waterfall plot

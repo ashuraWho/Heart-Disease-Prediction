@@ -15,9 +15,6 @@ import numpy as np                   # Import numpy for numerical computations a
 import matplotlib.pyplot as plt      # Import matplotlib for low-level plotting
 import seaborn as sns                # Import seaborn for statistical data visualization
 
-sns.set(style="whitegrid")           # Set a clean, whitegrid plotting style for seaborn
-plt.rcParams["figure.figsize"] = (10, 6)  # Set default figure size for consistency across plots
-
 from sklearn.model_selection import train_test_split   # Import train_test_split for splitting data
 from sklearn.preprocessing import StandardScaler       # Import StandardScaler for numerical feature scaling
 from sklearn.preprocessing import OneHotEncoder        # Import OneHotEncoder for categorical feature encoding
