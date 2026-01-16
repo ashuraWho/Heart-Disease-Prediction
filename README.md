@@ -68,14 +68,29 @@ Model performance is evaluated with a focus on **Recall**, which is critical in 
 
 If you encounter a **segmentation fault** or crashes when running the deep learning module on macOS (especially with Anaconda base environment), please follow these steps:
 
-1.  **Use the Setup Script**: We have provided a `setup_mac.sh` script to automate the creation of a stable environment. Run:
+### 1. Critical Environment Check
+**NEVER** run the scripts using absolute paths like `/opt/anaconda3/bin/python`. This forces the use of the "base" environment which is unstable for TensorFlow on Mac.
+
+To verify you are in the correct environment, run:
+```bash
+which python
+```
+It should return a path ending in `.../envs/heart_disease/bin/python`.
+
+### 2. Use the Setup Script
+We have provided a `setup_mac.sh` script to automate the creation of a stable environment. Run:
     ```bash
     chmod +x setup_mac.sh
     ./setup_mac.sh
     ```
-    After it finishes, activate the environment: `conda activate heart_disease`.
+    After it finishes, activate the environment and install dependencies:
+    ```bash
+    conda activate heart_disease
+    python -m pip install -r requirements.txt
+    ```
 
-2.  **Environment Variables**: The scripts already include several fixes:
+### 3. Environment Variables
+The scripts already include several fixes:
     - `KMP_DUPLICATE_LIB_OK=True`: Fixes multiple OpenMP runtime conflicts.
     - `TF_ENABLE_ONEDNN_OPTS=0`: Disables unstable CPU optimizations.
     - `OMP_NUM_THREADS=1`: Prevents resource-related SegFaults.

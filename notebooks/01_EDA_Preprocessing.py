@@ -8,7 +8,15 @@
 # ===================== # Header Section
 
 import os # Import os for environment variable manipulation
+import sys # Import sys to check the Python environment
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+
+# --- DIAGNOSTIC: Check Environment ---
+print(f"Python Executable: {sys.executable}") # Print the path to the current Python interpreter
+print(f"Python Version: {sys.version}") # Print the version of Python being used
+if "anaconda3/bin/python" in sys.executable or "miniconda3/bin/python" in sys.executable: # Check if running in base
+    print("WARNING: You are likely running in the 'base' environment. This is discouraged.") # Warn the user
+# -------------------------------------
 
 from pathlib import Path # Import Path for filesystem path manipulation
 

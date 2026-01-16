@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ==============================================================================
-# HEART DISEASE PREDICTION - MacOS Setup Script
+# HEART DISEASE PREDICTION - MacOS Setup Script (V2)
 # ==============================================================================
 # This script helps resolve segmentation faults often caused by Anaconda's
 # base environment conflicts on macOS.
@@ -15,23 +15,24 @@ echo "--------------------------------------------------------"
 echo "[1/4] Creating a clean conda environment 'heart_disease'..."
 conda create -n heart_disease python=3.10 -y
 
-# 2. Activate the environment (note: this might require user interaction outside the script)
-echo "[2/4] Activation instructions:"
-echo "    >>> To proceed, please run: conda activate heart_disease"
-echo "    >>> Then run the following commands manually."
+# 2. Activation instructions
+echo "[2/4] Activation Instructions:"
+echo "    >>> To finish setup, you MUST RUN these commands manually in your terminal:"
+echo "    >>> 1. conda activate heart_disease"
+echo "    >>> 2. python -m pip install pandas numpy matplotlib seaborn scikit-learn joblib shap tensorflow"
 
-# 3. Install dependencies via PIP (to avoid MKL/Anaconda binary conflicts)
-echo "[3/4] Installing dependencies via pip..."
-# We use PIP instead of CONDA for libraries to avoid the dreaded MKL conflict on Mac
-pip install pandas numpy matplotlib seaborn scikit-learn joblib shap tensorflow
-
-# 4. Special instructions for Apple Silicon (M1/M2/M3/M4)
-echo "[4/4] Note for Apple Silicon Users:"
+# 3. Special instructions for Apple Silicon (M1/M2/M3/M4)
+echo "[3/4] Note for Apple Silicon Users:"
 echo "    If you have an M1/M2/M3/M4 Mac, for better performance run:"
-echo "    pip install tensorflow-macos tensorflow-metal"
+echo "    python -m pip install tensorflow-macos tensorflow-metal"
+
+# 4. Critical Warning
+echo "[4/4] CRITICAL EXECUTION WARNING:"
+echo "    NEVER run the code with: /opt/anaconda3/bin/python ..."
+echo "    ALWAYS run it with: python notebooks/04_Deep_Learning.py"
+echo "    (After activating the environment)"
 
 echo "--------------------------------------------------------"
-echo "Setup script finished."
-echo "CRITICAL: Remember to ALWAYS activate the environment before running the code:"
-echo "          conda activate heart_disease"
+echo "To verify your environment later, run: which python"
+echo "It should point to: .../envs/heart_disease/bin/python"
 echo "--------------------------------------------------------"

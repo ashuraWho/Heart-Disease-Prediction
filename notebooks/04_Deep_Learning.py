@@ -18,11 +18,19 @@
 # ===================== # Header Section
 
 import os # Import os for environment variable manipulation
+import sys # Import sys to check the Python environment
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda (multiple OpenMP runtimes)
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to improve stability on some CPUs
 os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads to 1 to prevent resource-related SegFaults
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU execution to bypass potentially unstable GPU/Metal drivers on Mac
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce TensorFlow logging noise to focus on errors
+
+# --- DIAGNOSTIC: Check Environment ---
+print(f"Python Executable: {sys.executable}") # Print the path to the current Python interpreter
+print(f"Python Version: {sys.version}") # Print the version of Python being used
+if "anaconda3/bin/python" in sys.executable or "miniconda3/bin/python" in sys.executable: # Check if running in base
+    print("WARNING: You are likely running in the 'base' environment. This is discouraged.") # Warn the user
+# -------------------------------------
 
 print("Importing core libraries...") # Diagnostic print
 import random # Import random for reproducibility
