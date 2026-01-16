@@ -1,253 +1,232 @@
-# ============================================================
-# NOTEBOOK 4 – DEEP LEARNING (MULTI-LAYER PERCEPTRON)
-# Heart Disease Prediction
-# ============================================================
+# ============================================================ # Module 04 – Deep Learning (MLP)
+# NOTEBOOK 4 – DEEP LEARNING (MULTI-LAYER PERCEPTRON)          # Heart Disease Prediction
+# Heart Disease Prediction                                     # Global Header
+# ============================================================ # Global Header
 #
-# OBIETTIVI:
-# - Valutare una MLP su dataset tabulare piccolo
-# - Applicare tecniche robuste di regularization
-# - Confronto concettuale DL vs ML classico
+# OBJECTIVES:                                                  # List of objectives
+# - Evaluate an MLP on a small tabular dataset                  # Objective 1
+# - Apply robust regularization techniques                      # Objective 2
+# - Conceptual comparison between DL and classical ML           # Objective 3
 #
-# NOTA ARCHITETTURALE:
-# - Questo notebook NON dipende da altri notebook
-# - I dati arrivano esclusivamente da /artifacts
-# ============================================================
+# ARCHITECTURAL NOTE:                                          # Note section
+# - This script loads preprocessed data from /artifacts        # Note item 1
+# - It is designed to be run after Notebook 01                 # Note item 2
+# ============================================================ # Footer for header
 
+# ===================== # Header Section
+# 1. IMPORT LIBRARIES   # Import Libraries Header
+# ===================== # Header Section
 
-# =====================
-# 1. IMPORT LIBRARIES
-# =====================
+import random # Import random for reproducibility
+import numpy as np # Import numpy for numerical operations
+import tensorflow as tf # Import tensorflow for deep learning
 
-# Riproducibilità
-import random
-import numpy as np
-import tensorflow as tf
+import pandas as pd # Import pandas for data handling
 
-# Dati
-import pandas as pd
+import matplotlib.pyplot as plt # Import matplotlib for plotting
+import seaborn as sns # Import seaborn for visualization
 
-# Visualizzazione
-import matplotlib.pyplot as plt
-import seaborn as sns
+from tensorflow.keras.models import Sequential # Import Sequential model from Keras
+from tensorflow.keras.layers import Dense, Dropout, BatchNormalization # Import layers for building MLP
+from tensorflow.keras.optimizers import Adam # Import Adam optimizer
+from tensorflow.keras.callbacks import EarlyStopping # Import EarlyStopping callback
+from tensorflow.keras.regularizers import l2 # Import L2 regularization
 
-# Keras
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.regularizers import l2
+from sklearn.metrics import ( # Import metrics from sklearn
+    accuracy_score, # Import Accuracy metric
+    precision_score, # Import Precision metric
+    recall_score, # Import Recall metric
+    f1_score, # Import F1 metric
+    roc_auc_score, # Import ROC-AUC metric
+    confusion_matrix, # Import Confusion Matrix
+    RocCurveDisplay # Import ROC Curve Display
+) # End of metrics import
 
-# Metriche
-from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
-    roc_auc_score,
-    confusion_matrix,
-    RocCurveDisplay
-)
+sns.set(style="whitegrid") # Set whitegrid style for seaborn plots
+plt.rcParams["figure.figsize"] = (10, 6) # Set default figure size
 
-# Stile grafico
-sns.set(style="whitegrid")
-plt.rcParams["figure.figsize"] = (10, 6)
+# ===================== # Header Section
+# 2. REPRODUCIBILITY    # Reproducibility Header
+# ===================== # Header Section
 
+SEED = 42 # Define a global seed for reproducibility
+random.seed(SEED) # Set seed for Python's built-in random module
+np.random.seed(SEED) # Set seed for numpy's random number generator
+tf.random.set_seed(SEED) # Set seed for TensorFlow
 
-# =====================
-# 2. RIPRODUCIBILITÀ
-# =====================
+# ===================== # Header Section
+# 3. PATH HANDLING & LOAD DATA # Path and Load Data Header
+# ===================== # Header Section
 
-SEED = 42
-random.seed(SEED)
-np.random.seed(SEED)
-tf.random.set_seed(SEED)
+from pathlib import Path # Import Path for robust filesystem path manipulation
+PROJECT_ROOT = Path(__file__).resolve().parents[1] # Determine the project root directory
+ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the artifacts directory path
 
+X_train = np.load(ARTIFACTS_DIR / "X_train.npz")["X"] # Load training features from artifacts
+X_test  = np.load(ARTIFACTS_DIR / "X_test.npz")["X"] # Load testing features from artifacts
 
-# =====================
-# 3. LOAD DATA (ARTIFACTS)
-# =====================
-# I dati sono stati preprocessati e salvati
-# nel Notebook 1 come artifacts versionati
+y_train = np.load(ARTIFACTS_DIR / "y_train.npy") # Load training labels from artifacts
+y_test  = np.load(ARTIFACTS_DIR / "y_test.npy") # Load testing labels from artifacts
 
-X_train = np.load("../artifacts/X_train.npz")["X"]
-X_test  = np.load("../artifacts/X_test.npz")["X"]
+input_dim = X_train.shape[1] # Get the number of input dimensions (features)
 
-y_train = np.load("../artifacts/y_train.npy")
-y_test  = np.load("../artifacts/y_test.npy")
+# ===================== # Header Section
+# 4. MODEL ARCHITECTURE # Model Architecture Header
+# ===================== # Header Section
+# Compact MLP designed for small tabular data                  # Architecture comment
 
-input_dim = X_train.shape[1]
+model = Sequential([ # Initialize a Sequential Keras model
 
+    Dense( # Define the first hidden layer
+        32, # Number of neurons
+        activation="relu", # Use ReLU activation function
+        input_shape=(input_dim,), # Define input shape
+        kernel_regularizer=l2(1e-3) # Apply L2 regularization to prevent overfitting
+    ), # End of layer
+    BatchNormalization(), # Apply Batch Normalization for training stability
+    Dropout(0.4), # Apply Dropout for regularization
 
-# =====================
-# 4. MODEL ARCHITECTURE
-# =====================
-# MLP volutamente compatta:
-# - pochi layer
-# - forte regolarizzazione
-# - adatta a dati tabulari piccoli
+    Dense( # Define the second hidden layer
+        16, # Number of neurons
+        activation="relu", # Use ReLU activation function
+        kernel_regularizer=l2(1e-3) # Apply L2 regularization
+    ), # End of layer
+    BatchNormalization(), # Apply Batch Normalization
+    Dropout(0.3), # Apply Dropout
 
-model = Sequential([
+    Dense( # Define the third hidden layer
+        8, # Number of neurons
+        activation="relu", # Use ReLU activation function
+        kernel_regularizer=l2(1e-3) # Apply L2 regularization
+    ), # End of layer
 
-    Dense(
-        32,
-        activation="relu",
-        input_shape=(input_dim,),
-        kernel_regularizer=l2(1e-3)
-    ),
-    BatchNormalization(),
-    Dropout(0.4),
+    Dense(1, activation="sigmoid") # Define the output layer with sigmoid for binary classification
+]) # End of Sequential model
 
-    Dense(
-        16,
-        activation="relu",
-        kernel_regularizer=l2(1e-3)
-    ),
-    BatchNormalization(),
-    Dropout(0.3),
+# ===================== # Header Section
+# 5. COMPILATION        # Compilation Header
+# ===================== # Header Section
 
-    Dense(
-        8,
-        activation="relu",
-        kernel_regularizer=l2(1e-3)
-    ),
+model.compile( # Compile the model
+    optimizer=Adam(learning_rate=1e-3), # Use Adam optimizer with a specific learning rate
+    loss="binary_crossentropy", # Use binary crossentropy loss for binary classification
+    metrics=["accuracy"] # Track accuracy during training
+) # End of compile
 
-    Dense(1, activation="sigmoid")
-])
+model.summary() # Print the model summary showing layers and parameters
 
+# ===================== # Header Section
+# 6. EARLY STOPPING     # Early Stopping Header
+# ===================== # Header Section
 
-# =====================
-# 5. COMPILATION
-# =====================
+early_stopping = EarlyStopping( # Define EarlyStopping callback
+    monitor="val_loss", # Monitor validation loss
+    patience=20, # Wait for 20 epochs without improvement before stopping
+    restore_best_weights=True # Restore model weights from the best epoch
+) # End of EarlyStopping init
 
-model.compile(
-    optimizer=Adam(learning_rate=1e-3),
-    loss="binary_crossentropy",
-    metrics=["accuracy"]
-)
+# ===================== # Header Section
+# 7. TRAINING           # Training Header
+# ===================== # Header Section
 
-model.summary()
+history = model.fit( # Train the model
+    X_train, # Training features
+    y_train, # Training labels
+    validation_split=0.2, # Use 20% of training data for validation
+    epochs=300, # Maximum number of epochs
+    batch_size=16, # Batch size
+    callbacks=[early_stopping], # Use early stopping callback
+    verbose=1 # Show training progress
+) # End of fit
 
+# ===================== # Header Section
+# 8. TRAINING DIAGNOSTICS # Diagnostics Header
+# ===================== # Header Section
 
-# =====================
-# 6. EARLY STOPPING
-# =====================
+history_df = pd.DataFrame(history.history) # Convert training history to a DataFrame
 
-early_stopping = EarlyStopping(
-    monitor="val_loss",
-    patience=20,
-    restore_best_weights=True
-)
+# Loss plot                                                     # Loss Plot Comment
+plt.plot(history_df["loss"], label="Train") # Plot training loss
+plt.plot(history_df["val_loss"], label="Validation") # Plot validation loss
+plt.title("Training Loss") # Set plot title
+plt.xlabel("Epoch") # Set X-axis label
+plt.ylabel("Loss") # Set Y-axis label
+plt.legend() # Show legend
+plt.show() # Display the plot
 
+# Accuracy plot                                                 # Accuracy Plot Comment
+plt.plot(history_df["accuracy"], label="Train") # Plot training accuracy
+plt.plot(history_df["val_accuracy"], label="Validation") # Plot validation accuracy
+plt.title("Training Accuracy") # Set plot title
+plt.xlabel("Epoch") # Set X-axis label
+plt.ylabel("Accuracy") # Set Y-axis label
+plt.legend() # Show legend
+plt.show() # Display the plot
 
-# =====================
-# 7. TRAINING
-# =====================
+# ===================== # Header Section
+# 9. TEST SET EVALUATION # Evaluation Header
+# ===================== # Header Section
 
-history = model.fit(
-    X_train,
-    y_train,
-    validation_split=0.2,
-    epochs=300,
-    batch_size=16,
-    callbacks=[early_stopping],
-    verbose=1
-)
+y_pred_proba = model.predict(X_test).ravel() # Predict probabilities on test set and flatten the result
+y_pred = (y_pred_proba >= 0.5).astype(int) # Convert probabilities to binary predictions using 0.5 threshold
 
+nn_results = { # Store performance metrics in a dictionary
+    "Accuracy": accuracy_score(y_test, y_pred), # Calculate accuracy
+    "Precision": precision_score(y_test, y_pred), # Calculate precision
+    "Recall": recall_score(y_test, y_pred), # Calculate recall
+    "F1-score": f1_score(y_test, y_pred), # Calculate F1-score
+    "ROC-AUC": roc_auc_score(y_test, y_pred_proba) # Calculate ROC-AUC
+} # End of dictionary
 
-# =====================
-# 8. TRAINING DIAGNOSTICS
-# =====================
+print("\nNeural Network Performance:") # Print header for NN performance
+for k, v in nn_results.items(): # Iterate through metrics
+    print(f"{k}: {v:.3f}") # Print each metric formatted to 3 decimal places
 
-history_df = pd.DataFrame(history.history)
+# ===================== # Header Section
+# 10. ROC CURVE         # ROC Curve Header
+# ===================== # Header Section
 
-# Loss
-plt.plot(history_df["loss"], label="Train")
-plt.plot(history_df["val_loss"], label="Validation")
-plt.title("Training Loss")
-plt.xlabel("Epoch")
-plt.ylabel("Loss")
-plt.legend()
-plt.show()
+RocCurveDisplay.from_predictions( # Create ROC curve display from predictions
+    y_test, # Ground truth labels
+    y_pred_proba, # Predicted probabilities
+    name="Neural Network" # Name for the plot legend
+) # End of from_predictions
 
-# Accuracy
-plt.plot(history_df["accuracy"], label="Train")
-plt.plot(history_df["val_accuracy"], label="Validation")
-plt.title("Training Accuracy")
-plt.xlabel("Epoch")
-plt.ylabel("Accuracy")
-plt.legend()
-plt.show()
+plt.title("ROC Curve – Neural Network") # Set plot title
+plt.show() # Display the plot
 
+# ===================== # Header Section
+# 11. CONFUSION MATRIX  # Confusion Matrix Header
+# ===================== # Header Section
 
-# =====================
-# 9. TEST SET EVALUATION
-# =====================
+cm = confusion_matrix(y_test, y_pred) # Calculate the confusion matrix
 
-y_pred_proba = model.predict(X_test).ravel()
-y_pred = (y_pred_proba >= 0.5).astype(int)
+sns.heatmap( # Create a heatmap for the confusion matrix
+    cm, # Confusion matrix data
+    annot=True, # Annotate cells with values
+    fmt="d", # Use integer formatting for annotations
+    cmap="Blues" # Use Blues color map
+) # End of heatmap
 
-nn_results = {
-    "Accuracy": accuracy_score(y_test, y_pred),
-    "Precision": precision_score(y_test, y_pred),
-    "Recall": recall_score(y_test, y_pred),
-    "F1-score": f1_score(y_test, y_pred),
-    "ROC-AUC": roc_auc_score(y_test, y_pred_proba)
-}
+plt.title("Confusion Matrix – Neural Network") # Set plot title
+plt.xlabel("Predicted") # Set label for X-axis
+plt.ylabel("Actual") # Set label for Y-axis
+plt.show() # Display the plot
 
-print("\nNeural Network Performance:")
-for k, v in nn_results.items():
-    print(f"{k}: {v:.3f}")
+# ===================== # Header Section
+# 12. SAVE MODEL        # Save Model Header
+# ===================== # Header Section
 
+model.save(ARTIFACTS_DIR / "nn_model.keras") # Save the trained Keras model to artifacts
 
-# =====================
-# 10. ROC CURVE
-# =====================
-
-RocCurveDisplay.from_predictions(
-    y_test,
-    y_pred_proba,
-    name="Neural Network"
-)
-
-plt.title("ROC Curve – Neural Network")
-plt.show()
-
-
-# =====================
-# 11. CONFUSION MATRIX
-# =====================
-
-cm = confusion_matrix(y_test, y_pred)
-
-sns.heatmap(
-    cm,
-    annot=True,
-    fmt="d",
-    cmap="Blues"
-)
-
-plt.title("Confusion Matrix – Neural Network")
-plt.xlabel("Predicted")
-plt.ylabel("Actual")
-plt.show()
-
-
-# =====================
-# 12. SAVE MODEL
-# =====================
-# Modello salvato come artifact versionabile
-
-model.save("../artifacts/nn_model.keras")
-
-
-# =====================
-# 13. CONCLUSIONI
-# =====================
-# - Su dataset piccoli tabulari, DL ≠ soluzione migliore
-# - ML classico spesso:
-#   • generalizza meglio
-#   • è più interpretabile
-#   • costa meno in termini computazionali
+# ===================== # Header Section
+# 13. CONCLUSIONS       # Conclusions Header
+# ===================== # Header Section
+# - On small tabular datasets, DL is often not the best solution # Conclusion 1
+# - Classical ML often:                                         # Classical ML advantages
+#   • Generalizes better                                        # Advantage 1
+#   • Is more interpretable                                     # Advantage 2
+#   • Is less computationally expensive                         # Advantage 3
 #
-# Questo notebook dimostra consapevolezza metodologica,
-# non uso ingenuo del Deep Learning.
+# This script demonstrates methodological awareness             # Final Note 1
+# rather than naive use of Deep Learning.                       # Final Note 2
