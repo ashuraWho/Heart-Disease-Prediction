@@ -1,104 +1,109 @@
-# Heart Disease Prediction Project
+# Heart Disease Prediction: A Robust and Explainable ML Pipeline
 
-This project implements a comprehensive machine learning pipeline to predict the presence of heart disease based on clinical data. It covers everything from exploratory data analysis (EDA) and preprocessing to classical machine learning models, model explainability, and deep learning.
+## 🌟 Project Vision & Mission
 
-## Project Structure
+**What we are doing:**
+This project is an end-to-end Machine Learning ecosystem designed to predict the presence of heart disease from clinical data. We have built a robust, portable, and highly documented pipeline that transforms raw clinical observations into actionable insights and predictive models.
 
-The project is organized into sequential modules located in the `notebooks/` directory:
+**Where we are going:**
+The goal is to bridge the gap between "Black Box" algorithms and clinical interpretability. By combining classical statistical models with modern Deep Learning and cutting-edge Explainable AI (XAI) techniques like SHAP, we are moving toward a future where AI-assisted diagnosis is not only accurate but also transparent and justifiable to medical professionals.
 
-1.  **`01_EDA_Preprocessing.py`**:
-    - Performs exploratory data analysis.
-    - Handles data cleaning and feature renaming.
-    - Implements a preprocessing pipeline (scaling for numerical features, one-hot encoding for categorical features).
-    - Saves processed data and the fitted preprocessor as artifacts.
+---
 
-2.  **`02_ML_Classic.py`**:
-    - Loads preprocessed artifacts.
-    - Trains and tunes several classical models (Logistic Regression, KNN, SVM, Random Forest) using Grid Search and Cross-Validation.
-    - Evaluates models based on Recall, Accuracy, Precision, F1, and ROC-AUC.
-    - Saves the best-performing classical model.
+## 🛠 Architectural Decisions & Motivations
 
-3.  **`03_Explainability.py`**:
-    - Focuses on model interpretability.
-    - Uses SHAP (SHapley Additive exPlanations) to explain model predictions.
-    - Visualizes global feature importance and local explanations for individual patients.
+Every line of code and every structural choice in this repository was made with specific technical and educational goals in mind.
 
-4.  **`04_Deep_Learning.py`**:
-    - Implements a Multi-Layer Perceptron (MLP) using TensorFlow/Keras.
-    - Employs robust regularization techniques like L2 regularization, Batch Normalization, and Dropout to handle the small tabular dataset.
-    - Compares deep learning performance with classical approaches.
+### 1. Robust Path Management (`pathlib`)
+*   **Motivation:** Traditional string-based path handling (e.g., `../data/file.csv`) is brittle and often fails depending on where the script is executed.
+*   **Solution:** We implemented `pathlib.Path(__file__).resolve()`. This ensures the project root is always identified correctly relative to the script's location, making the entire pipeline portable across Windows, macOS, and Linux.
 
-## Getting Started
+### 2. Environment Diagnostics & Anaconda Stability
+*   **Motivation:** macOS users often experience "Segmentation Faults" when running TensorFlow within Anaconda, especially when scripts inadvertently use the Anaconda 'base' environment instead of a dedicated one.
+*   **Solution:** We added diagnostic prints to every module that output the exact `sys.executable` being used. If the script detects it is running in the `anaconda3/bin/python` (base) path, it issues a critical warning.
 
-### Prerequisites
+### 3. macOS-Specific Stability Fixes
+*   **KMP_DUPLICATE_LIB_OK=True:** Resolves conflicts when multiple OpenMP runtimes (common in Anaconda/Intel libraries) are loaded.
+*   **OMP_NUM_THREADS=1:** Prevents deadlocks and resource-related crashes by limiting threading during initialization.
+*   **CUDA_VISIBLE_DEVICES=-1:** Forces CPU execution on Mac. Given the small size of tabular medical data, CPU training is nearly as fast as GPU/Metal but significantly more stable across different macOS versions.
+*   **TF_ENABLE_ONEDNN_OPTS=0:** Disables floating-point optimizations that are known to cause arithmetic errors or crashes on certain CPU architectures.
 
-Ensure you have Python installed. You can install the required dependencies using pip:
+### 4. Robust Explainable AI (SHAP)
+*   **Motivation:** SHAP often fails or produces different output shapes depending on the model (Tree-based vs. Linear vs. KNN).
+*   **Solution:** We built a custom "SHAP Wrapper" logic in Module 03. It automatically detects the model type, chooses the correct Explainer, and slices the output dimensions to ensure it always correctly identifies the "Presence" of heart disease (index 1) regardless of the internal model representation.
 
+### 5. Transition to Keras 3
+*   **Motivation:** Older Keras code is becoming deprecated.
+*   **Solution:** Module 04 follows Keras 3 standards, using explicit `Input()` layers. This ensures the model is future-proof and compatible with the latest TensorFlow releases.
+
+### 6. Line-by-Line English Documentation
+*   **Motivation:** To provide maximum educational value and ensure the logic is clear to developers of all levels.
+*   **Solution:** Every single line of code in the `notebooks/` directory is followed by a `#` comment in English, explaining its purpose and context.
+
+---
+
+## 📂 Pipeline Deep-Dive
+
+### Module 01: EDA & Preprocessing
+The foundation of the project. It focuses on "Data Quality First."
+- **Motivations:** Raw data is messy. We implement categorical encoding and numerical scaling within a `ColumnTransformer` to ensure zero data leakage between training and testing sets.
+- **Output:** Processed `.npz` and `.npy` artifacts for subsequent modules.
+
+### Module 02: Classical Machine Learning
+Baselining and model selection.
+- **Motivations:** We don't just pick a model; we compete them. Logistic Regression, KNN, SVM, and Random Forest are tuned via `GridSearchCV`.
+- **Focus:** We prioritize **Recall**. In heart disease prediction, a "False Negative" (missing a sick patient) is far more dangerous than a "False Positive."
+
+### Module 03: Explainability (SHAP)
+Opening the "Black Box."
+- **Motivations:** Doctors don't trust a number; they trust a reason. This module uses SHAP values to show which features (e.g., Cholesterol, Chest Pain type) most influenced the model's decision for a specific patient.
+
+### Module 04: Deep Learning (MLP)
+Advanced predictive modeling.
+- **Motivations:** For complex patterns, we use a Multi-Layer Perceptron.
+- **Robustness:** We use heavy regularization (L2, Dropout, Batch Normalization) to prevent the neural network from overfitting on this relatively small tabular dataset.
+
+---
+
+## 🚀 Getting Started
+
+### 1. The Right Way (macOS / Linux)
+We provide a dedicated setup script to bypass common environment issues:
 ```bash
-pip install pandas numpy matplotlib seaborn scikit-learn joblib shap tensorflow
+chmod +x setup_mac.sh
+./setup_mac.sh
+conda activate heart_disease
+python -m pip install -r requirements.txt
 ```
 
-### Usage
-
-The modules are designed to be run in order. From the project root, execute:
-
+### 2. Manual Installation
 ```bash
-python notebooks/01_EDA_Preprocessing.py
-python notebooks/02_ML_Classic.py
-python notebooks/03_Explainability.py
-python notebooks/04_Deep_Learning.py
+pip install -r requirements.txt
 ```
 
-## Dataset
+### 3. Execution Order
+Always run the modules in sequence:
+1. `python notebooks/01_EDA_Preprocessing.py`
+2. `python notebooks/02_ML_Classic.py`
+3. `python notebooks/03_Explainability.py`
+4. `python notebooks/04_Deep_Learning.py`
 
-The dataset used is `Heart_Disease_Prediction.csv`, located in the `data/` directory. It contains clinical parameters such as age, blood pressure, cholesterol levels, and more, with the target variable being the presence or absence of heart disease.
+---
 
-## Key Features
+## 🛑 Critical Troubleshooting
 
-- **Robust Path Handling**: Uses `pathlib` for cross-platform compatibility.
-- **Reproducibility**: Global seeds are set for consistent results.
-- **Explainability**: Integrated SHAP analysis for transparent AI.
-- **Line-by-Line Documentation**: Every module is extensively commented for educational clarity.
+### Segmentation Fault on Mac?
+**NEVER** run the scripts like this: `/opt/anaconda3/bin/python notebooks/04_Deep_Learning.py`.
+**ALWAYS** run them like this:
+1. `conda activate heart_disease`
+2. `python notebooks/04_Deep_Learning.py`
 
-## Results
+Running with an absolute path to the Anaconda base Python will bypass your environment and trigger a crash.
 
-Model performance is evaluated with a focus on **Recall**, which is critical in medical diagnostics to minimize false negatives. Detailed metrics and plots (ROC curves, confusion matrices) are generated for each approach.
+---
 
-## Troubleshooting (macOS / Anaconda)
-
-If you encounter a **segmentation fault** or crashes when running the deep learning module on macOS (especially with Anaconda base environment), please follow these steps:
-
-### 1. Critical Environment Check
-**NEVER** run the scripts using absolute paths like `/opt/anaconda3/bin/python`. This forces the use of the "base" environment which is unstable for TensorFlow on Mac.
-
-To verify you are in the correct environment, run:
-```bash
-which python
-```
-It should return a path ending in `.../envs/heart_disease/bin/python`.
-
-### 2. Use the Setup Script
-We have provided a `setup_mac.sh` script to automate the creation of a stable environment. Run:
-    ```bash
-    chmod +x setup_mac.sh
-    ./setup_mac.sh
-    ```
-    After it finishes, activate the environment and install dependencies:
-    ```bash
-    conda activate heart_disease
-    python -m pip install -r requirements.txt
-    ```
-
-### 3. Environment Variables
-The scripts already include several fixes:
-    - `KMP_DUPLICATE_LIB_OK=True`: Fixes multiple OpenMP runtime conflicts.
-    - `TF_ENABLE_ONEDNN_OPTS=0`: Disables unstable CPU optimizations.
-    - `OMP_NUM_THREADS=1`: Prevents resource-related SegFaults.
-    - `CUDA_VISIBLE_DEVICES=-1`: Forces CPU execution to bypass unstable GPU drivers on Mac.
-
-3.  **Avoid Base Environment**: **Do not run the code in Anaconda's (base) environment.** The base environment is prone to binary conflicts between MKL-linked libraries and pip-installed TensorFlow.
-
-4.  **Apple Silicon (M1/M2/M3/M4)**: For Mac with Apple Silicon, ensure you are in an ARM64 terminal and run:
-    ```bash
-    pip install tensorflow-macos tensorflow-metal
-    ```
+## 🗺 Roadmap
+- [ ] Integration of SMOTE for better class balancing.
+- [ ] Deployment of the pipeline as a REST API (FastAPI).
+- [ ] Frontend dashboard for real-time patient risk assessment.
+- [ ] Cross-validation for the Deep Learning module.
