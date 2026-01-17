@@ -3,13 +3,22 @@
 # Heart Disease Prediction Dataset                             # Global Header
 # ============================================================ # Global Header
 
-# ===================== # Header Section
-# 1. IMPORT LIBRARIES   # Import Libraries Header
-# ===================== # Header Section
-
 import os # Import os for environment variable manipulation
-import sys # Import sys to check the Python environment
+# --- CRITICAL STABILITY & macOS FIXES (MUST BE BEFORE ANY OTHER IMPORTS) ---
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads
+os.environ['MKL_NUM_THREADS'] = '1' # Limit MKL threads
+# ---------------------------------------------------------------------------
+
+print("Importing system libraries...") # Diagnostic print
+import sys # Import sys to check the Python environment
+from pathlib import Path # Import Path for filesystem path manipulation
+
+print("Importing data science libraries...") # Diagnostic print
+import pandas as pd                  # Import pandas for data manipulation and tabular data handling
+import numpy as np                   # Import numpy for numerical computations and array operations
+import matplotlib.pyplot as plt      # Import matplotlib for low-level plotting
+import seaborn as sns                # Import seaborn for statistical data visualization
 
 # --- DIAGNOSTIC: Check Environment ---
 print(f"Python Executable: {sys.executable}") # Print the path to the current Python interpreter
@@ -18,14 +27,7 @@ if "anaconda3/bin/python" in sys.executable or "miniconda3/bin/python" in sys.ex
     print("WARNING: You are likely running in the 'base' environment. This is discouraged.") # Warn the user
 # -------------------------------------
 
-from pathlib import Path # Import Path for filesystem path manipulation
-
-import pandas as pd                  # Import pandas for data manipulation and tabular data handling
-import numpy as np                   # Import numpy for numerical computations and array operations
-
-import matplotlib.pyplot as plt      # Import matplotlib for low-level plotting
-import seaborn as sns                # Import seaborn for statistical data visualization
-
+print("Importing preprocessing tools...") # Diagnostic print
 from sklearn.model_selection import train_test_split   # Import train_test_split for splitting data
 from sklearn.preprocessing import StandardScaler       # Import StandardScaler for numerical feature scaling
 from sklearn.preprocessing import OneHotEncoder        # Import OneHotEncoder for categorical feature encoding
@@ -33,6 +35,8 @@ from sklearn.compose import ColumnTransformer           # Import ColumnTransform
 from sklearn.pipeline import Pipeline                   # Import Pipeline for reproducible ML workflows
 
 from joblib import dump # Import dump from joblib to save Python objects to disk
+
+print("All libraries imported successfully.") # Diagnostic print
 
 # ===================== # Header Section
 # 2. GLOBAL CONFIG      # Global Configuration Header
@@ -117,7 +121,6 @@ if "Heart Disease Status" in df.columns: # Check column
 
 print("\n--- DATA AFTER MAPPING ---") # Print header
 print(df.head()) # Show mapped data
-print(df.info()) # Show schema
 
 # ===================== # Header Section
 # 7. INTERACTIVE EDA FUNCTIONS # Plotting Header

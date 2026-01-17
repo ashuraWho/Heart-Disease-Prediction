@@ -1,21 +1,30 @@
-# ============================================================ # Module 05 – Inference, Database & Clinical Support
-# NOTEBOOK 5 – INTERACTIVE PREDICTION & SQL STORAGE           # Heart Disease Prediction
+# ============================================================ # Module 04 – Inference, Database & Clinical Support
+# NOTEBOOK 4 – INTERACTIVE PREDICTION & SQL STORAGE           # Heart Disease Prediction
 # Heart Disease Prediction                                     # Global Header
 # ============================================================ # Global Header
 
 import os # Import os for environment variable manipulation
+# --- CRITICAL STABILITY & macOS FIXES (MUST BE BEFORE ANY OTHER IMPORTS) ---
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads
+os.environ['MKL_NUM_THREADS'] = '1' # Limit MKL threads
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU
+# ---------------------------------------------------------------------------
+
+print("Importing system libraries...") # Diagnostic print
 import sys # Import sys to check the Python environment
 import sqlite3 # Import sqlite3 for database management
+from pathlib import Path # Import Path for robust filesystem path manipulation
+
+print("Importing data science libraries...") # Diagnostic print
 import pandas as pd # Import pandas for data handling
 import numpy as np # Import numpy for numerical operations
-from pathlib import Path # Import Path for robust filesystem path manipulation
+
+print("Importing Machine Learning tools...") # Diagnostic print
 from joblib import load # Import load from joblib to retrieve saved models
 import tensorflow as tf # Import tensorflow for Keras model loading
 
-# --- DIAGNOSTIC & STABILITY ---                                        # Stability Section
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU
-# ------------------------------
+print("All libraries imported successfully.") # Diagnostic print
 
 # Define project paths                                                  # Path Definition Section
 PROJECT_ROOT = Path(__file__).resolve().parents[1] # Identify the project root directory

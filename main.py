@@ -4,16 +4,18 @@
 # ============================================================ # Global Header
 
 import os # Import os for environment variable manipulation
+# --- CRITICAL STABILITY & macOS FIXES (MUST BE BEFORE ANY OTHER IMPORTS) ---
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to improve stability
+os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads
+os.environ['MKL_NUM_THREADS'] = '1' # Limit MKL threads
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce logging
+# ---------------------------------------------------------------------------
+
 import sys # Import sys for system-specific parameters and functions
 import subprocess # Import subprocess to run external scripts
 from pathlib import Path # Import Path for robust filesystem path manipulation
-
-# --- DIAGNOSTIC & STABILITY ---                                        # Stability Section
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to improve stability
-os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads to prevent resource-related SegFaults
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU execution for stability on Mac
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce TensorFlow logging noise
 
 # Define project paths                                                  # Path Definition Section
 PROJECT_ROOT = Path(__file__).resolve().parent # Identify the project root directory
@@ -33,14 +35,22 @@ def print_header(title): # Define a function to print a styled header
 def run_module(script_name, args=None): # Define a function to run a specific module script
     script_path = NOTEBOOKS_DIR / script_name # Construct the full path to the script
     print(f"\n[EXECUTION] Starting {script_name}...") # Print execution start message
+
+    # Pass current environment variables to the subprocess                  # Subprocess Env handling
+    env = os.environ.copy() # Copy current env
+
     cmd = [sys.executable, str(script_path)] # Prepare the base command
     if args: # Check if additional arguments are provided
         cmd.extend(args) # Add arguments to the command
     try: # Start error handling block
-        subprocess.run(cmd, check=True) # Run the script using the current Python interpreter
+        subprocess.run(cmd, check=True, env=env) # Run the script with inherited environment
         print(f"\n[SUCCESS] {script_name} completed successfully.") # Print success message
     except subprocess.CalledProcessError as e: # Catch script execution errors
-        print(f"\n[ERROR] Module {script_name} failed with exit code {e.returncode}.") # Print error message
+        if e.returncode == -11 or e.returncode == 139: # Check for SegFault codes
+             print(f"\n[CRITICAL ERROR] Module {script_name} experienced a Segmentation Fault (Mac/Anaconda conflict).")
+             print(">>> Please ensure you are NOT in the 'base' environment and use 'setup_mac.sh'.")
+        else:
+             print(f"\n[ERROR] Module {script_name} failed with exit code {e.returncode}.") # Print error message
 
 def show_clinical_guide(): # Define a function to display clinical parameter explanations
     clear_screen() # Clear the terminal

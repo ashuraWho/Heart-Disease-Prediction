@@ -4,35 +4,48 @@
 # ============================================================ # Global Header
 
 import os # Import os for environment variable manipulation
+# --- CRITICAL STABILITY & macOS FIXES (MUST BE BEFORE ANY OTHER IMPORTS) ---
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda (multiple OpenMP runtimes)
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to improve stability on some CPUs
+os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads to 1 to prevent resource-related SegFaults
+os.environ['MKL_NUM_THREADS'] = '1' # Limit MKL threads to prevent binary conflicts in Anaconda
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU execution to bypass potentially unstable GPU/Metal drivers on Mac
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce TensorFlow logging noise to focus on errors
+# ---------------------------------------------------------------------------
+
+print("[TRACE] Initializing system...") # Diagnostic trace
 import sys # Import sys to check the Python environment
 import random # Import random for reproducibility
-import numpy as np # Import numpy for numerical operations
-import pandas as pd # Import pandas for data manipulation
-import matplotlib.pyplot as plt # Import matplotlib for plotting
-import seaborn as sns # Import seaborn for statistical data visualization
 
-# --- STABILITY & macOS FIXES ---                                       # Stability Section
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to improve stability
-os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads to prevent resource-related SegFaults
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU execution for stability on Mac
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce TensorFlow logging noise
-# -------------------------------
+print("[TRACE] Loading fundamental Data Science libraries...") # Diagnostic trace
+import numpy as np # Import numpy for numerical operations
+print("[TRACE] Numpy loaded.") # Diagnostic trace
+import pandas as pd # Import pandas for data manipulation
+print("[TRACE] Pandas loaded.") # Diagnostic trace
+import matplotlib.pyplot as plt # Import matplotlib for plotting
+print("[TRACE] Matplotlib loaded.") # Diagnostic trace
+import seaborn as sns # Import seaborn for statistical data visualization
+print("[TRACE] Seaborn loaded.") # Diagnostic trace
 
 from pathlib import Path # Import Path for robust filesystem path manipulation
 from joblib import dump # Import dump from joblib for object serialization
-import tensorflow as tf # Import tensorflow for deep learning
 
+print("[TRACE] Importing Machine Learning tools...") # Diagnostic trace
 # Import Scikit-Learn tools                                             # sklearn Imports
 from sklearn.linear_model import LogisticRegression # Import Logistic Regression
 from sklearn.neighbors import KNeighborsClassifier # Import KNN
-from sklearn.svm import SVC # Import SVM
+from sklearn.svm import SVC # Import SVC
 from sklearn.ensemble import RandomForestClassifier # Import Random Forest
 from sklearn.model_selection import GridSearchCV, StratifiedKFold # Import CV tools
 from sklearn.metrics import ( # Import metrics
     accuracy_score, precision_score, recall_score,
     f1_score, roc_auc_score, confusion_matrix
 )
+print("[TRACE] Scikit-Learn tools loaded.") # Diagnostic trace
+
+print("[TRACE] Attempting to load TensorFlow (Critical point)...") # Diagnostic trace
+import tensorflow as tf # Import tensorflow for deep learning
+print(f"[TRACE] TensorFlow Version: {tf.__version__}") # Diagnostic trace
 
 # Import Keras tools                                                    # Keras Imports
 from tensorflow.keras.models import Sequential # Import Sequential model
@@ -40,6 +53,9 @@ from tensorflow.keras.layers import Dense, Dropout, BatchNormalization, Input # 
 from tensorflow.keras.optimizers import Adam # Import Adam optimizer
 from tensorflow.keras.callbacks import EarlyStopping # Import EarlyStopping
 from tensorflow.keras.regularizers import l2 # Import L2 regularization
+print("[TRACE] Keras tools loaded.") # Diagnostic trace
+
+print("[TRACE] All libraries imported successfully. Proceeding to execution...") # Diagnostic trace
 
 # ===================== # Header Section
 # PATHS                 # Paths Header

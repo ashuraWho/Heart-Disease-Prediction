@@ -4,26 +4,31 @@
 # ============================================================ # Global Header
 
 import os # Import os for environment variable manipulation
-import sys # Import sys to check the Python environment
+# --- CRITICAL STABILITY & macOS FIXES (MUST BE BEFORE ANY OTHER IMPORTS) ---
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads
+os.environ['MKL_NUM_THREADS'] = '1' # Limit MKL threads
+# ---------------------------------------------------------------------------
 
-# --- DIAGNOSTIC: Check Environment ---
-print(f"Python Executable: {sys.executable}") # Print the path to the current Python interpreter
-print(f"Python Version: {sys.version}") # Print the version of Python being used
-# -------------------------------------
-
+print("Importing system libraries...") # Diagnostic print
+import sys # Import sys to check the Python environment
 from pathlib import Path # Import Path for robust filesystem path manipulation
+
+print("Importing data science libraries...") # Diagnostic print
 import numpy as np # Import numpy for numerical operations and array handling
 import pandas as pd # Import pandas for data manipulation and tabular data
-
 import matplotlib.pyplot as plt # Import matplotlib for plotting
 import seaborn as sns # Import seaborn for statistical data visualization
+
 sns.set(style="whitegrid") # Set a clean, whitegrid plotting style for seaborn
 plt.rcParams["figure.figsize"] = (10, 6) # Set default figure size for consistency
 
+print("Importing Machine Learning and Explainability tools...") # Diagnostic print
 import shap # Import shap for model explainability
 from joblib import load # Import load from joblib to retrieve saved models
 import tensorflow as tf # Import tensorflow for Keras model loading
+
+print("All libraries imported successfully.") # Diagnostic print
 
 # ===================== # Header Section
 # PATHS                 # Paths Header
