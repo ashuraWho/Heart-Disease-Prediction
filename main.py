@@ -1,126 +1,154 @@
-# ============================================================ # Heart Disease Prediction - Integrated CLI Dashboard
-# MAIN MODULE – MEDICAL DECISION SUPPORT SYSTEM                # Global Header
-# Heart Disease Prediction                                     # Project Name
-# ============================================================ # Global Header
+# ============================================================ #
+# Heart Disease Prediction - Integrated CLI Dashboard          #
+# MAIN MODULE – MEDICAL DECISION SUPPORT SYSTEM                #
+# ============================================================ #
 
-import os # Import os for environment variable manipulation
-import sys # Import sys for system-specific parameters and functions
-import subprocess # Import subprocess to run external scripts
-from pathlib import Path # Import Path for robust filesystem path manipulation
+import os
+import sys
+import subprocess
+from pathlib import Path
 
-# --- DIAGNOSTIC & STABILITY ---                                        # Stability Section
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # Disable oneDNN to improve stability
-os.environ['OMP_NUM_THREADS'] = '1' # Limit OpenMP threads to prevent resource-related SegFaults
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU execution for stability on Mac
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce TensorFlow logging noise
+# Add notebooks directory to sys.path to allow importing shared_utils
+sys.path.append(str(Path(__file__).resolve().parent / "notebooks"))
 
-# Define project paths                                                  # Path Definition Section
-PROJECT_ROOT = Path(__file__).resolve().parent # Identify the project root directory
-NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks" # Define the directory containing modules
-ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the directory for ML artifacts
+try:
+    from shared_utils import (
+        setup_environment, 
+        print_header, 
+        clear_screen, 
+        NOTEBOOKS_DIR, 
+        ARTIFACTS_DIR, 
+        DB_PATH,
+        console
+    )
+except ImportError as e:
+    print(f"CRITICAL ERROR: Could not import shared_utils. Make sure you are running from the project root. {e}")
+    sys.exit(1)
+
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich import print as rprint
+
+# --- INITIALIZE ENVIRONMENT ---
+setup_environment()
+
 # ------------------------------
 
-def clear_screen(): # Define a function to clear the terminal screen
-    os.system('cls' if os.name == 'nt' else 'clear') # Execute clear command based on OS
-
-def print_header(title): # Define a function to print a styled header
-    print("=" * 60) # Print decorative line
-    print(f" {title.center(58)} ") # Print centered title
-    print("=" * 60) # Print decorative line
-
-def run_module(script_name, args=None): # Define a function to run a specific module script
-    script_path = NOTEBOOKS_DIR / script_name # Construct the full path to the script
-    print(f"\n[EXECUTION] Starting {script_name}...") # Print execution start message
-    cmd = [sys.executable, str(script_path)] # Prepare the base command
-    if args: # Check if additional arguments are provided
-        cmd.extend(args) # Add arguments to the command
-    try: # Start error handling block
-        subprocess.run(cmd, check=True) # Run the script using the current Python interpreter
-        print(f"\n[SUCCESS] {script_name} completed successfully.") # Print success message
-    except subprocess.CalledProcessError as e: # Catch script execution errors
-        print(f"\n[ERROR] Module {script_name} failed with exit code {e.returncode}.") # Print error message
-
-def show_clinical_guide(): # Define a function to display clinical parameter explanations
-    clear_screen() # Clear the terminal
-    print_header("CLINICAL DATA GLOSSARY & GUIDE") # Print glossary header
-    guide = { # Define dictionary with clinical parameter explanations
-        "Age": "Patient's age in years.", # Explanation for Age
-        "Sex": "1 = Male; 0 = Female.", # Explanation for Sex
-        "ChestPain": "1: Typical Angina, 2: Atypical Angina, 3: Non-Anginal Pain, 4: Asymptomatic.", # Explanation for Chest Pain
-        "BP": "Resting blood pressure (mm Hg on admission to the hospital).", # Explanation for Blood Pressure
-        "Cholesterol": "Serum cholesterol in mg/dl.", # Explanation for Cholesterol
-        "FBS": "Fasting blood sugar > 120 mg/dl (1 = true; 0 = false).", # Explanation for Fasting Blood Sugar
-        "EKG": "Resting ECG results (0: Normal, 1: ST-T wave abnormality, 2: Left ventricular hypertrophy).", # Explanation for ECG
-        "MaxHR": "Maximum heart rate achieved during stress test.", # Explanation for Max Heart Rate
-        "ExerciseAngina": "Exercise induced angina (1 = yes; 0 = no).", # Explanation for Exercise Angina
-        "ST_Depression": "ST depression induced by exercise relative to rest (marker of ischemia).", # Explanation for ST Depression
-        "ST_Slope": "1: Upsloping, 2: Flat, 3: Downsloping (Slope of the peak exercise ST segment).", # Explanation for ST Slope
-        "NumVessels": "Number of major vessels (0-3) colored by flourosopy.", # Explanation for Number of Vessels
-        "Thallium": "3 = Normal; 6 = Fixed defect; 7 = Reversable defect (Nuclear stress test result)." # Explanation for Thallium Test
-    } # End of guide dictionary
-    for key, value in guide.items(): # Iterate through the guide dictionary
-        print(f"► {key.ljust(15)}: {value}") # Print formatted explanation
-    input("\nPress Enter to return to main menu...") # Wait for user input to continue
-
-def reset_artifacts(): # Define a function to clear all generated artifacts
-    if ARTIFACTS_DIR.exists(): # Check if directory exists
-        import shutil # Import shutil for folder deletion
-        shutil.rmtree(ARTIFACTS_DIR) # Delete the artifacts folder and its contents
-        ARTIFACTS_DIR.mkdir() # Recreate the empty artifacts folder
-        print("\n[RESET] All artifacts have been deleted. You MUST run the pipeline from Module 01.") # Print status
-    else: # If directory doesn't exist
-        print("\n[INFO] No artifacts found to delete.") # Print info
-
-def main_menu(): # Define the main menu loop
-    while True: # Start infinite loop for the menu
-        clear_screen() # Clear the terminal
-        print_header("HEART DISEASE PREDICTION SYSTEM - CLINICAL DASHBOARD") # Print system header
-        print("1. [Pipeline] Run EDA & Preprocessing (Module 01)") # Option 1
-        print("2. [Pipeline] Train & Tune Classical ML Models (Module 02)") # Option 2
-        print("3. [XAI] View Model Explainability / SHAP Analysis (Module 03)") # Option 3
-        print("4. [Deep Learning] Train Neural Network (Module 04)") # Option 4
-        print("5. [Prediction] Predict for a New Patient (Manual Input & Save)") # Option 5
-        print("6. [Prediction] Batch Predict all Patients in Database") # Option 6
-        print("7. [Knowledge] Clinical Data Glossary") # Option 7
-        print("r. [Maintenance] Reset System Artifacts") # Reset option
-        print("q. Exit System") # Exit option
-        print("-" * 60) # Print separator
-        print("NOTE: If you see 'AttributeError' or 'Compatibility Issue', run 1 and 2.") # Helpful tip
-        print("-" * 60) # Print separator
+def run_module(script_name, args=None):
+    """Runs a specific module script using subprocess."""
+    script_path = NOTEBOOKS_DIR / script_name
+    console.print(f"\n[bold cyan][EXECUTION] Starting {script_name}...[/bold cyan]")
+    
+    # Pass current environment variables to the subprocess
+    env = os.environ.copy()
+    
+    cmd = [sys.executable, str(script_path)]
+    if args:
+        cmd.extend(args)
         
-        choice = input("Select an option (1-7, r or q): ").lower() # Get user choice and convert to lowercase
-        
-        match choice: # Use match-case for structural navigation
-            case '1': # Case for EDA
-                run_module("01_EDA_Preprocessing.py") # Run Module 01
-                input("\nPress Enter to continue...") # Pause
-            case '2': # Case for Classic ML
-                run_module("02_ML_Classic.py") # Run Module 02
-                input("\nPress Enter to continue...") # Pause
-            case '3': # Case for Explainability
-                run_module("03_Explainability.py") # Run Module 03
-                input("\nPress Enter to continue...") # Pause
-            case '4': # Case for Deep Learning
-                run_module("04_Deep_Learning.py") # Run Module 04
-                input("\nPress Enter to continue...") # Pause
-            case '5': # Case for Inference
-                run_module("05_Inference.py") # Run Module 05
-                input("\nPress Enter to continue...") # Pause
-            case '6': # Case for Batch Prediction
-                run_module("05_Inference.py", args=["--batch"]) # Run Module 05 in batch mode
-                input("\nPress Enter to continue...") # Pause
-            case '7': # Case for Glossary
-                show_clinical_guide() # Show the glossary
-            case 'r': # Case for Reset
-                reset_artifacts() # Call reset function
-                input("\nPress Enter to continue...") # Pause
-            case 'q': # Case for Exit
-                print("Exiting system. Stay healthy!") # Print goodbye message
-                break # Exit the loop
-            case _: # Default case for invalid input
-                print("Invalid selection. Please try again.") # Print error
-                input("\nPress Enter to continue...") # Pause
+    try:
+        subprocess.run(cmd, check=True, env=env)
+        console.print(f"\n[bold green][SUCCESS] {script_name} completed successfully.[/bold green]")
+    except subprocess.CalledProcessError as e:
+        if e.returncode == -11 or e.returncode == 139: # SegFaults
+             console.print(Panel(f"[bold red][CRITICAL ERROR] Module {script_name} experienced a Segmentation Fault.[/bold red]\n\n[yellow]>>> Please ensure you are NOT in the 'base' environment and use 'setup_mac.sh'.[/yellow]", title="Execution Error"))
+        else:
+             console.print(f"\n[bold red][ERROR] Module {script_name} failed with exit code {e.returncode}.[/bold red]")
 
-if __name__ == "__main__": # Check if the script is run directly
-    main_menu() # Start the main menu
+def show_clinical_guide():
+    """Displays clinical parameter explanations using Rich."""
+    clear_screen()
+    print_header("CLINICAL DATA GLOSSARY & GUIDE")
+    
+    from shared_utils import CLINICAL_GUIDE
+    
+    for key, value in CLINICAL_GUIDE.items():
+        console.print(f"[bold cyan]► {key.ljust(20)}[/bold cyan]: {value}")
+        
+    Prompt.ask("\nPress Enter to return to main menu", show_default=False)
+
+def eda_interactive_menu():
+    """Sub-menu for EDA plots."""
+    while True:
+        clear_screen()
+        print_header("EDA & DATA VISUALIZATION")
+        console.print("[1] Show Correlation Matrix (Numerical Heatmap)")
+        console.print("[2] Show Target Variable Distribution")
+        console.print("[3] Show Individual Feature Plots (One by One)")
+        console.print("[q] Return to Main Menu")
+        
+        choice = Prompt.ask("\nSelect an option", choices=["1", "2", "3", "q"])
+        
+        if choice == '1': run_module("01_EDA_Preprocessing.py", args=["--plots"])
+        elif choice == '2': run_module("01_EDA_Preprocessing.py", args=["--plots"])
+        elif choice == '3': run_module("01_EDA_Preprocessing.py", args=["--plots"])
+        elif choice == 'q': break
+
+def reset_artifacts():
+    """Clears all generated artifacts."""
+    if ARTIFACTS_DIR.exists():
+        import shutil
+        shutil.rmtree(ARTIFACTS_DIR)
+        ARTIFACTS_DIR.mkdir()
+        console.print(Panel("\n[bold green][RESET] All artifacts deleted.[/bold green]\n[yellow]You MUST run Module 01 & 02 again.[/yellow]", title="System Maintenance"))
+    else:
+        console.print("\n[INFO] No artifacts folder found.")
+
+def delete_database():
+    """Deletes the SQL database."""
+    if DB_PATH.exists():
+        os.remove(DB_PATH)
+        console.print(f"\n[bold red][DELETE] Database '{DB_PATH.name}' deleted.[/bold red]")
+    else:
+        console.print("\n[INFO] No database found.")
+
+def main_menu():
+    """Main menu loop."""
+    while True:
+        clear_screen()
+        print_header("HEART DISEASE PREDICTION SYSTEM")
+        
+        console.print(Panel.fit(
+            "[bold white]1.[/bold white] [cyan][Data][/cyan] EDA & Visual Analysis (Interactive Plots)\n"
+            "[bold white]2.[/bold white] [cyan][Training][/cyan] Unified Model Competition (ML vs DL)\n"
+            "[bold white]3.[/bold white] [cyan][XAI][/cyan] Explainability (SHAP Analysis)\n"
+            "[bold white]4.[/bold white] [cyan][Patient][/cyan] Predict for a New Patient (Manual Entry)\n"
+            "[bold white]5.[/bold white] [cyan][History][/cyan] Batch Predict all Patients in Database\n"
+            "[bold white]6.[/bold white] [cyan][Knowledge][/cyan] Clinical Glossary (Definitions)\n\n"
+            "[bold white]d.[/bold white] [red][Maintenance][/red] Delete SQL Patient Database\n"
+            "[bold white]r.[/bold white] [red][Maintenance][/red] Reset ML Artifacts\n"
+            "[bold white]q.[/bold white] [white]Exit System[/white]",
+            title="Main Menu",
+            border_style="blue"
+        ))
+        
+        console.print("[italic dim]Tip: Run Module 1 & 2 first to enable Predictions and XAI.[/italic dim]")
+        
+        choice = Prompt.ask("\nSelect an option", choices=["1", "2", "3", "4", "5", "6", "d", "r", "q"])
+        
+        if choice == '1': eda_interactive_menu()
+        elif choice == '2': 
+            run_module("02_Unified_Training.py")
+            Prompt.ask("\nPress Enter to continue", show_default=False)
+        elif choice == '3':
+            run_module("03_Explainability.py")
+            Prompt.ask("\nPress Enter to continue", show_default=False)
+        elif choice == '4':
+            run_module("04_Inference.py")
+            Prompt.ask("\nPress Enter to continue", show_default=False)
+        elif choice == '5':
+            run_module("04_Inference.py", args=["--batch"])
+            Prompt.ask("\nPress Enter to continue", show_default=False)
+        elif choice == '6': show_clinical_guide()
+        elif choice == 'd': 
+            delete_database()
+            Prompt.ask("\nPress Enter to continue", show_default=False)
+        elif choice == 'r': 
+            reset_artifacts()
+            Prompt.ask("\nPress Enter to continue", show_default=False)
+        elif choice == 'q':
+            console.print("[bold green]Exiting. Stay healthy![/bold green]")
+            break
+
+if __name__ == "__main__":
+    main_menu()

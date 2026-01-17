@@ -1,171 +1,127 @@
-# ============================================================ # Module 03 – Explainability & Interpretability
-# MODULE 03 – EXPLAINABILITY & INTERPRETABILITY               # Heart Disease Prediction
-# Heart Disease Prediction                                     # Global Header
-# ============================================================ # Global Header
+# ============================================================ #
+# Module 03 – Explainability & Interpretability                #
+# ============================================================ #
 
-import os # Import os for environment variable manipulation
-import sys # Import sys to check the Python environment
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+import sys
+from pathlib import Path
 
-# --- DIAGNOSTIC: Check Environment ---
-print(f"Python Executable: {sys.executable}") # Print the path to the current Python interpreter
-print(f"Python Version: {sys.version}") # Print the version of Python being used
-if "anaconda3/bin/python" in sys.executable or "miniconda3/bin/python" in sys.executable: # Check if running in base
-    print("WARNING: You are likely running in the 'base' environment. This is discouraged.") # Warn the user
-# -------------------------------------
+# Add project root to sys.path
+sys.path.append(str(Path(__file__).resolve().parent))
 
-from pathlib import Path # Import Path for robust filesystem path manipulation
-import numpy as np # Import numpy for numerical operations and array handling
-import pandas as pd # Import pandas for data manipulation and tabular data
-
-import matplotlib.pyplot as plt # Import matplotlib for plotting
-import seaborn as sns # Import seaborn for statistical data visualization
-sns.set(style="whitegrid") # Set a clean, whitegrid plotting style for seaborn
-plt.rcParams["figure.figsize"] = (10, 6) # Set default figure size for consistency
-
-import shap # Import shap for model explainability
-from joblib import load # Import load from joblib to retrieve saved models
-
-# ===================== # Header Section
-# PATHS                 # Paths Header
-# ===================== # Header Section
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1] # Define the root directory of the project
-ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the artifacts directory path
-
-# ===================== # Header Section
-# LOAD ARTIFACTS        # Load Artifacts Header
-# ===================== # Header Section
-
-try: # Start safety block for library version compatibility
-    preprocessor = load(ARTIFACTS_DIR / "preprocessor.joblib") # Load the saved preprocessing pipeline
-    model = load(ARTIFACTS_DIR / "best_model_classic.joblib") # Load the best classical model
-except (AttributeError, KeyError, Exception) as e: # Catch errors caused by scikit-learn version mismatches
-    print(f"ERROR: Compatibility issue detected while loading artifacts: {e}") # Print the error
-    print("\n[CRITICAL] Your environment version of scikit-learn likely differs from the one that saved the artifacts.") # Suggest cause
-    print(">>> FIX: Please run 'Module 01' and 'Module 02' again to regenerate artifacts for your system.") # Suggest fix
-    sys.exit(1) # Exit the script
-
-X_test = np.load(ARTIFACTS_DIR / "X_test.npz")["X"] # Load preprocessed testing features
-y_test = np.load(ARTIFACTS_DIR / "y_test.npy") # Load testing labels
-
-print("Artifacts loaded successfully") # Print confirmation message for artifact loading
-
-# ===================== # Header Section
-# FEATURE NAMES         # Feature Names Header
-# ===================== # Header Section
-
-num_features = preprocessor.transformers_[0][2] # Extract numerical feature names from the preprocessor
-
-cat_features = ( # Extract categorical feature names after one-hot encoding
-    preprocessor # Reference the main preprocessor
-    .transformers_[1][1] # Get the categorical transformer pipeline
-    .named_steps["onehot"] # Access the onehot step
-    .get_feature_names_out( # Generate feature names based on original categories
-        preprocessor.transformers_[1][2] # Use the list of categorical feature names as input
-    ) # End of name generation
-) # End of cat_features assignment
-
-feature_names = np.concatenate([num_features, cat_features]) # Concatenate numerical and categorical feature names
-
-# ===================== # Header Section
-# GLOBAL INTERPRETABILITY # Global Interpretability Header
-# ===================== # Header Section
-
-if hasattr(model, "coef_"): # Check if the model is a linear model (e.g., Logistic Regression)
-    # Logistic Regression case
-    coef_df = pd.DataFrame({ # Create a DataFrame for model coefficients
-        "Feature": feature_names, # Assign feature names
-        "Coefficient": model.coef_[0] # Assign corresponding coefficient values
-    }) # End of DataFrame init
-    coef_df["AbsCoeff"] = coef_df["Coefficient"].abs() # Calculate absolute coefficient values for importance ranking
-    coef_df = coef_df.sort_values("AbsCoeff", ascending=False) # Sort features by absolute importance
-
-    sns.barplot( # Create a bar plot for the top coefficients
-        x="Coefficient", # Coefficients on the X-axis
-        y="Feature", # Feature names on the Y-axis
-        data=coef_df.head(15) # Use only the top 15 features
-    ) # End of barplot
-    plt.title("Top 15 Features – Logistic Regression") # Set title for coefficient plot
-    plt.show() # Display the coefficient plot
-
-elif hasattr(model, "feature_importances_"): # Check if the model has feature importances (e.g., Random Forest)
-    # Random Forest case
-    imp_df = pd.DataFrame({ # Create a DataFrame for feature importances
-        "Feature": feature_names, # Assign feature names
-        "Importance": model.feature_importances_ # Assign importance scores
-    }).sort_values("Importance", ascending=False) # Sort features by importance score
-
-    sns.barplot( # Create a bar plot for feature importances
-        x="Importance", # Importance scores on the X-axis
-        y="Feature", # Feature names on the Y-axis
-        data=imp_df.head(15) # Use only the top 15 features
-    ) # End of barplot
-    plt.title("Top 15 Features – Random Forest") # Set title for importance plot
-    plt.show() # Display the importance plot
-
-# ===================== # Header Section
-# SHAP EXPLAINABILITY   # SHAP Explainability Header
-# ===================== # Header Section
-
-# Use a robust way to initialize the SHAP explainer
-if hasattr(model, "feature_importances_"): # If the model is tree-based (like Random Forest)
-    explainer = shap.TreeExplainer(model) # Use TreeExplainer for optimized tree analysis
-    shap_values = explainer(X_test) # Calculate SHAP values
-elif hasattr(model, "coef_"): # If the model is linear (like Logistic Regression)
-    explainer = shap.LinearExplainer(model, X_test) # Use LinearExplainer for linear models
-    shap_values = explainer(X_test) # Calculate SHAP values
-else: # For other models (like KNN or SVM)
-    # Use KernelExplainer as a model-agnostic approach
-    # We use a small subset of test data as a background for speed if needed, but here we use X_test
-    # We wrap the prediction function to ensure SHAP can call it
-    if hasattr(model, "predict_proba"): # Prefer probability predictions if available
-        # Wrap predict_proba to return only the positive class probability if necessary, 
-        # or handle the multi-class output of SHAP
-        explainer = shap.Explainer(model.predict_proba, X_test) # Initialize general explainer
-    else: # Fallback to hard predictions
-        explainer = shap.Explainer(model.predict, X_test) # Initialize general explainer
-    shap_values = explainer(X_test) # Calculate SHAP values
-
-# Handle SHAP output dimensions (multi-class vs binary)
-# If SHAP values have an extra dimension for classes, select the positive class (index 1)
 try:
-    if hasattr(shap_values, "values") and len(shap_values.values.shape) == 3: # Check if output is (samples, features, classes)
-        shap_obj = shap_values[:, :, 1] # Select SHAP values for the 'Presence' class
-    elif not hasattr(shap_values, "values") and len(shap_values.shape) == 3: # Case for raw numpy array
-        shap_obj = shap_values[:, :, 1] # Select positive class
-    else: # If output is already (samples, features)
-        shap_obj = shap_values # Use as is
-except Exception: # Fallback
-    shap_obj = shap_values # Default to original object
+    from shared_utils import (
+        setup_environment, 
+        console, 
+        ARTIFACTS_DIR
+    )
+except ImportError:
+    print("Error: shared_utils not found.")
+    sys.exit(1)
 
-# Extract raw values for summary plots if it's an Explanation object
-shap_vals_raw = shap_obj.values if hasattr(shap_obj, "values") else shap_obj
+# Initialize Environment
+setup_environment()
 
-# ===================== # Header Section
-# SHAP SUMMARY          # SHAP Summary Header
-# ===================== # Header Section
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import shap
+from joblib import load
+import tensorflow as tf
 
-shap.summary_plot( # Create a SHAP summary dot plot
-    shap_vals_raw, # Use raw SHAP values
-    X_test, # Use corresponding feature values
-    feature_names=feature_names # Provide feature names for labeling
-) # End of summary_plot
+# --- CONFIG ---
+sns.set(style="whitegrid")
+plt.rcParams["figure.figsize"] = (10, 6)
 
-shap.summary_plot( # Create a SHAP summary bar plot (global importance)
-    shap_vals_raw, # Use raw SHAP values
-    X_test, # Use corresponding feature values
-    feature_names=feature_names, # Provide feature names
-    plot_type="bar" # Specify bar plot type
-) # End of summary_plot
+# --- LOAD ARTIFACTS ---
+console.print("[bold cyan]Loading artifacts for explainability...[/bold cyan]")
 
-# ===================== # Header Section
-# LOCAL EXPLANATION     # Local Explanation Header
-# ===================== # Header Section
+try:
+    preprocessor = load(ARTIFACTS_DIR / "preprocessor.joblib")
+    
+    with open(ARTIFACTS_DIR / "model_type.txt", "r") as f:
+        model_type = f.read().strip()
+        
+    if model_type == "keras":
+        model = tf.keras.models.load_model(ARTIFACTS_DIR / "best_model_unified.keras")
+    else:
+        model = load(ARTIFACTS_DIR / "best_model_unified.joblib")
 
-patient_idx = 0 # Select an index for a specific patient to explain
+    X_test = np.load(ARTIFACTS_DIR / "X_test.npz")["X"]
+    y_test = np.load(ARTIFACTS_DIR / "y_test.npy")
 
-shap.plots.waterfall( # Create a waterfall plot for local explanation
-    shap_obj[patient_idx], # Provide SHAP values for the specific patient
-    max_display=15 # Limit the number of displayed features
-) # End of waterfall plot
+except Exception as e:
+    console.print(f"[bold red]ERROR: Compatibility issue or missing files: {e}[/bold red]")
+    console.print("[yellow]>>> FIX: Please run 'Module 01' and 'Module 02' again.[/yellow]")
+    sys.exit(1)
+
+console.print(f"[green]Artifacts loaded successfully. Active Model Type:[/green] [bold]{model_type}[/bold]")
+
+# --- FEATURE NAMES ---
+feature_names = preprocessor.get_feature_names_out()
+
+# --- GLOBAL INTERPRETABILITY ---
+console.print("\n[bold header]Global Feature Importance[/bold header]")
+
+if hasattr(model, "coef_"):
+    # Linear Model
+    coef_df = pd.DataFrame({
+        "Feature": feature_names,
+        "Coefficient": model.coef_[0]
+    })
+    coef_df["AbsCoeff"] = coef_df["Coefficient"].abs()
+    coef_df = coef_df.sort_values("AbsCoeff", ascending=False)
+
+    sns.barplot(x="Coefficient", y="Feature", data=coef_df.head(15))
+    plt.title("Top 15 Features – Linear Model Importance")
+    plt.show()
+
+elif hasattr(model, "feature_importances_"):
+    # Tree Model
+    imp_df = pd.DataFrame({
+        "Feature": feature_names,
+        "Importance": model.feature_importances_
+    }).sort_values("Importance", ascending=False)
+
+    sns.barplot(x="Importance", y="Feature", data=imp_df.head(15))
+    plt.title("Top 15 Features – Tree Model Importance")
+    plt.show()
+
+# --- SHAP EXPLAINABILITY ---
+console.print("\n[bold header]Generating SHAP Explanations...[/bold header]")
+
+# Init Explainer
+with console.status("Initializing SHAP explainer...", spinner="dots"):
+    if model_type == "keras":
+        # KernelExplainer for Keras (using small background set for speed)
+        explainer = shap.KernelExplainer(model.predict, X_test[:20], verbose=0)
+        shap_values = explainer.shap_values(X_test[:10])
+        shap_vals_raw = shap_values[0] if isinstance(shap_values, list) else shap_values
+    else:
+        if hasattr(model, "feature_importances_"):
+            explainer = shap.TreeExplainer(model)
+            shap_values = explainer(X_test)
+        else:
+            explainer = shap.Explainer(model.predict, X_test)
+            shap_values = explainer(X_test)
+        
+        # Normalize
+        shap_vals_raw = shap_values.values if hasattr(shap_values, "values") else shap_values
+        if len(shap_vals_raw.shape) == 3: 
+            shap_vals_raw = shap_vals_raw[:, :, 1]
+
+# Summary Plot
+shap.summary_plot(
+    shap_vals_raw,
+    X_test[:10] if model_type == "keras" else X_test,
+    feature_names=feature_names
+)
+
+# --- LOCAL EXPLANATION ---
+patient_idx = 0
+console.print(f"\n[cyan]Explaining prediction for Patient #{patient_idx}...[/cyan]")
+
+if hasattr(shap_values, "values") and model_type != "keras":
+    shap.plots.waterfall(shap_values[patient_idx], max_display=15)
+else:
+    shap.bar_plot(shap_vals_raw[patient_idx], feature_names=feature_names, max_display=15)

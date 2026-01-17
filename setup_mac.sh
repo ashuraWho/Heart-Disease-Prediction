@@ -19,7 +19,7 @@ conda create -n heart_disease python=3.10 -y
 echo "[2/4] Activation Instructions:"
 echo "    >>> To finish setup, you MUST RUN these commands manually in your terminal:"
 echo "    >>> 1. conda activate heart_disease"
-echo "    >>> 2. python -m pip install pandas numpy matplotlib seaborn scikit-learn joblib shap tensorflow"
+echo "    >>> 2. python -m pip install pandas numpy matplotlib seaborn scikit-learn joblib shap tensorflow rich"
 
 # 3. Special instructions for Apple Silicon (M1/M2/M3/M4)
 echo "[3/4] Note for Apple Silicon Users:"
@@ -30,7 +30,6 @@ echo "    python -m pip install tensorflow-macos tensorflow-metal"
 echo "[4/4] CRITICAL EXECUTION WARNING:"
 echo "    NEVER run the code with: /opt/anaconda3/bin/python ..."
 echo "    ALWAYS run it with: python notebooks/04_Deep_Learning.py"
-echo "    OR ALWAYS run it with: python main.py"
 echo "    (After activating the environment)"
 
 echo "--------------------------------------------------------"

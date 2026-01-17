@@ -1,233 +1,162 @@
-# ============================================================
-# NOTEBOOK 1 – EDA & PREPROCESSING                            
-# Heart Disease Prediction Dataset                            
-# ============================================================
+# ============================================================ #
+# Module 01 – EDA & Preprocessing                              #
+# ============================================================ #
 
-# =====================
-# 1. IMPORT LIBRARIES  
-# =====================
+import sys
+from pathlib import Path
 
-import os # Import os for environment variable manipulation
-import sys # Import sys to check the Python environment
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+# Add current directory to sys.path to ensure shared_utils can be imported
+# if run directly or via main.py
+sys.path.append(str(Path(__file__).resolve().parent))
 
-# --- DIAGNOSTIC: Check Environment ---
-print(f"Python Executable: {sys.executable}") # Print the path to the current Python interpreter
-print(f"Python Version: {sys.version}") # Print the version of Python being used
-if "anaconda3/bin/python" in sys.executable or "miniconda3/bin/python" in sys.executable: # Check if running in base
-    print("WARNING: You are likely running in the 'base' environment. This is discouraged.") # Warn the user
-# -------------------------------------
+try:
+    from shared_utils import (
+        setup_environment, 
+        console, 
+        DATASET_PATH, 
+        ARTIFACTS_DIR, 
+        CLINICAL_GUIDE
+    )
+except ImportError:
+    # Fallback if shared_utils is not found (shouldn't happen with correct sys.path)
+    print("Error: shared_utils not found.")
+    sys.exit(1)
 
-from pathlib import Path # Import Path for filesystem path manipulation
+# Initialize Environment
+setup_environment()
 
-import pandas as pd # Import pandas for data manipulation and tabular data handling
-import numpy as np # Import numpy for numerical computations and array operations
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer
+from joblib import dump
 
-import matplotlib.pyplot as plt # Import matplotlib for low-level plotting
-import seaborn as sns # Import seaborn for statistical data visualization
+# --- GLOBAL CONFIG ---
+sns.set(style="whitegrid")
+plt.rcParams["figure.figsize"] = (10, 6)
+RANDOM_STATE = 42
+TEST_SIZE = 0.2
 
-from sklearn.model_selection import train_test_split # Import train_test_split for splitting data
-from sklearn.preprocessing import StandardScaler # Import StandardScaler for numerical feature scaling
-from sklearn.preprocessing import OneHotEncoder # Import OneHotEncoder for categorical feature encoding
-from sklearn.compose import ColumnTransformer # Import ColumnTransformer for selective preprocessing
-from sklearn.pipeline import Pipeline # Import Pipeline for reproducible ML workflows
+# --- LOAD DATASET ---
+console.print(f"[bold cyan]Loading dataset from:[/bold cyan] {DATASET_PATH}")
 
-from joblib import dump # Import dump from joblib to save Python objects to disk
+try:
+    df = pd.read_csv(DATASET_PATH)
+except FileNotFoundError:
+    console.print(f"[bold red]ERROR: Dataset not found at {DATASET_PATH}[/bold red]")
+    sys.exit(1)
 
-# =====================
-# 2. GLOBAL CONFIG     
-# =====================
+# --- DATA CLEANING ---
+initial_rows = df.shape[0]
+df.dropna(inplace=True)
+final_rows = df.shape[0]
+console.print(f"Rows: [bold]{initial_rows}[/bold] -> [bold green]{final_rows}[/bold] (Dropped {initial_rows - final_rows} NaNs)")
 
-sns.set(style="whitegrid") # Redundant set style (maintained for completeness)
-plt.rcParams["figure.figsize"] = (10, 6) # Redundant set rcParams (maintained for completeness)
+# --- MAPPING FUNCTIONS ---
+# We map strings to numbers to enable correlation analysis and visualization.
 
-RANDOM_STATE = 42 # Set a random state for reproducibility
-TEST_SIZE = 0.2 # Set the proportion of the dataset to include in the test split
+# 1. Binary Mapping
+binary_cols = ["Smoking", "Family Heart Disease", "Diabetes", "High Blood Pressure", 
+               "Low HDL Cholesterol", "High LDL Cholesterol"]
+for col in binary_cols:
+    if col in df.columns:
+        df[col] = df[col].map({"Yes": 1, "No": 0})
 
-# =====================
-# 3. PATH HANDLING     
-# =====================
+if "Gender" in df.columns:
+    df["Gender"] = df["Gender"].map({"Male": 1, "Female": 0})
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1] # Define the root directory of the project
-DATA_DIR = PROJECT_ROOT / "data" # Define the data directory path
-ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the artifacts directory path
+if "Heart Disease Status" in df.columns:
+    df["HeartDisease"] = df["Heart Disease Status"].map({"Yes": 1, "No": 0})
+    df.drop(columns=["Heart Disease Status"], inplace=True)
 
-DATASET_PATH = DATA_DIR / "Heart_Disease_Prediction.csv" # Define the path to the dataset CSV file
+# 2. Ordinal Level Mapping
+level_mapping = {"None": 0, "Low": 1, "Medium": 2, "High": 3}
+level_mapping_basic = {"Low": 0, "Medium": 1, "High": 2}
 
-ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True) # Create the artifacts directory if it doesn't exist
+ordinal_map_cols = {
+    "Exercise Habits": level_mapping_basic,
+    "Stress Level": level_mapping_basic,
+    "Sugar Consumption": level_mapping_basic,
+    "Alcohol Consumption": level_mapping
+}
 
-# =====================
-# 4. LOAD DATASET      
-# =====================
+for col, mapping in ordinal_map_cols.items():
+    if col in df.columns:
+        df[col] = df[col].map(mapping)
 
-df = pd.read_csv(DATASET_PATH) # Load the dataset into a pandas DataFrame
+# --- INTERACTIVE EDA FUNCTIONS ---
+def show_correlation_matrix():
+    plt.figure(figsize=(12, 10))
+    corr = df.corr()
+    sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f")
+    plt.title("Numerical Correlation Matrix")
+    plt.tight_layout()
+    plt.show()
 
-print(f"Dataset loaded from: {DATASET_PATH}") # Print the dataset source path
-print(df.head()) # Print the first five rows of the DataFrame
+def show_target_distribution():
+    plt.figure(figsize=(6, 4))
+    sns.countplot(x="HeartDisease", data=df)
+    plt.title("Distribution of Heart Disease Presence")
+    plt.show()
+    
+def show_feature_plots():
+    for col in df.drop("HeartDisease", axis=1).columns:
+        plt.figure(figsize=(12, 5))
+        
+        plt.subplot(1, 2, 1)
+        if df[col].nunique() > 5: # Assume continuous if specific number of unique vals
+             sns.histplot(df[col], kde=True)
+        else:
+             sns.countplot(x=col, data=df)
+        plt.title(f"Distribution of {col}")
+        
+        plt.subplot(1, 2, 2)
+        sns.boxplot(x="HeartDisease", y=col, data=df)
+        plt.title(f"{col} vs Heart Disease")
+        
+        plt.tight_layout()
+        plt.show()
+        
+        cont = input("Press Enter for next, 'q' to stop: ")
+        if cont.lower() == 'q': break
 
-# =====================
-# 5. DATASET OVERVIEW    # Dataset Overview Header
-# =====================
+# --- PREPROCESSING & SPLIT ---
+X = df.drop("HeartDisease", axis=1)
+y = df["HeartDisease"]
 
-print(f"Number of rows: {df.shape[0]}") # Print the total number of rows in the dataset
-print(f"Number of columns: {df.shape[1]}") # Print the total number of columns in the dataset
-df.info() # Print a concise summary of the DataFrame
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
+)
 
-# =====================
-# 6. COLUMN RENAMING & TARGET ENCODING # Renaming and Encoding Header
-# =====================
+numerical_cols = X.columns.tolist()
+preprocessor = ColumnTransformer(
+    transformers=[("num", StandardScaler(), numerical_cols)]
+)
 
-rename_dict = { # Define a dictionary for renaming columns to shorter, clearer names
-    "Chest pain type": "ChestPain", # Mapping 'Chest pain type' to 'ChestPain'
-    "FBS over 120": "FBS", # Mapping 'FBS over 120' to 'FBS'
-    "EKG results": "EKG", # Mapping 'EKG results' to 'EKG'
-    "Max HR": "MaxHR", # Mapping 'Max HR' to 'MaxHR'
-    "Exercise angina": "ExerciseAngina", # Mapping 'Exercise angina' to 'ExerciseAngina'
-    "ST depression": "ST_Depression", # Mapping 'ST depression' to 'ST_Depression'
-    "Slope of ST": "ST_Slope", # Mapping 'Slope of ST' to 'ST_Slope'
-    "Number of vessels fluro": "NumVessels", # Mapping 'Number of vessels fluro' to 'NumVessels'
-    "Heart Disease": "HeartDisease", # Mapping 'Heart Disease' to 'HeartDisease'
-} # End of dictionary definition
+# Fit & Transform
+X_train_processed = preprocessor.fit_transform(X_train)
+X_test_processed = preprocessor.transform(X_test)
 
-df.rename(columns=rename_dict, inplace=True) # Apply the renaming to the DataFrame in place
+# --- SAVE ARTIFACTS ---
+dump(preprocessor, ARTIFACTS_DIR / "preprocessor.joblib")
+np.save(ARTIFACTS_DIR / "y_train.npy", y_train)
+np.save(ARTIFACTS_DIR / "y_test.npy", y_test)
+np.savez(ARTIFACTS_DIR / "X_train.npz", X=X_train_processed)
+np.savez(ARTIFACTS_DIR / "X_test.npz", X=X_test_processed)
 
-df["HeartDisease"] = df["HeartDisease"].map({ # Map target labels to numerical values
-    "Absence": 0, # Map 'Absence' of heart disease to 0
-    "Presence": 1 # Map 'Presence' of heart disease to 1
-}) # End of mapping
+console.print(f"[bold green]Artifacts saved to {ARTIFACTS_DIR}[/bold green]")
 
-print("Columns after renaming:") # Print message indicating upcoming column list
-print(df.columns) # Print the updated column names
-
-# =====================
-# 7. DATA QUALITY CHECKS # Data Quality Checks Header
-# =====================
-
-print("\nMissing values per column:") # Print header for missing values report
-print(df.isnull().sum()) # Print the count of missing values for each column
-
-duplicates = df.duplicated().sum() # Count the number of duplicate rows in the DataFrame
-print(f"\nNumber of duplicate rows: {duplicates}") # Print the count of duplicate rows
-
-# =====================
-# 8. TARGET ANALYSIS    # Target Analysis Header
-# =====================
-
-sns.countplot(x="HeartDisease", data=df) # Create a count plot for the target variable
-plt.title("Target Distribution (HeartDisease)") # Set the title of the target distribution plot
-plt.show() # Display the target distribution plot
-
-print(df["HeartDisease"].value_counts(normalize=True) * 100) # Print the normalized value counts (percentages) for the target
-
-# =====================
-# 9. FEATURE GROUPS     # Feature Groups Header
-# =====================
-
-numerical_features = [ # Define a list of numerical features
-    "Age", "BP", "Cholesterol", "MaxHR", "ST_Depression" # Features: Age, Blood Pressure, Cholesterol, Max HR, ST Depression
-] # End of numerical features list
-
-categorical_features = [ # Define a list of categorical features
-    "Sex", "ChestPain", "FBS", "EKG", # Features: Sex, Chest Pain, FBS, EKG
-    "ExerciseAngina", "ST_Slope", "NumVessels", "Thallium" # Features: Exercise Angina, ST Slope, Num Vessels, Thallium
-] # End of categorical features list
-
-# =====================
-# 10. EDA – NUMERICAL FEATURES # Numerical EDA Header
-# =====================
-
-for col in numerical_features: # Iterate through each numerical feature for visualization
-    sns.histplot(df[col], kde=True) # Create a histogram with a Kernel Density Estimate (KDE)
-    plt.title(f"Distribution of {col}") # Set the title for the feature distribution plot
-    plt.show() # Display the distribution plot
-
-    sns.boxplot(x="HeartDisease", y=col, data=df) # Create a box plot of the feature versus the target
-    plt.title(f"{col} vs HeartDisease") # Set the title for the box plot
-    plt.show() # Display the box plot
-
-# =====================
-# 11. EDA – CATEGORICAL FEATURES # Categorical EDA Header
-# =====================
-
-for col in categorical_features: # Iterate through each categorical feature for visualization
-    sns.countplot(x=col, hue="HeartDisease", data=df) # Create a count plot of the feature with target hue
-    plt.title(f"{col} vs HeartDisease") # Set the title for the categorical relationship plot
-    plt.legend(title="HeartDisease") # Add a legend for the target variable
-    plt.show() # Display the count plot
-
-# =====================
-# 12. CORRELATION ANALYSIS # Correlation Analysis Header
-# =====================
-
-corr_matrix = df[numerical_features + ["HeartDisease"]].corr() # Calculate the correlation matrix for numerical features and target
-sns.heatmap(corr_matrix, annot=True, cmap="coolwarm") # Create a heatmap of the correlation matrix with annotations
-plt.title("Correlation Matrix") # Set the title for the correlation heatmap
-plt.show() # Display the correlation heatmap
-
-# =====================
-# 13. FEATURE / TARGET SPLIT # Data Split Header
-# =====================
-
-X = df.drop("HeartDisease", axis=1) # Create the feature matrix by dropping the target column
-y = df["HeartDisease"] # Create the target vector
-
-# =====================
-# 14. TRAIN / TEST SPLIT # Train/Test Split Header
-# =====================
-
-X_train, X_test, y_train, y_test = train_test_split( # Split data into training and testing sets
-    X, # Feature matrix
-    y, # Target vector
-    test_size=TEST_SIZE, # Proportion of test set
-    random_state=RANDOM_STATE, # Random state for reproducibility
-    stratify=y # Stratify split based on target to maintain class proportions
-) # End of split function
-
-print("Train shape:", X_train.shape) # Print the shape of the training feature set
-print("Test shape:", X_test.shape) # Print the shape of the testing feature set
-
-# =====================
-# 15. PREPROCESSING PIPELINE # Preprocessing Pipeline Header
-# =====================
-
-numeric_transformer = Pipeline(steps=[ # Define a pipeline for numerical feature transformation
-    ("scaler", StandardScaler()) # Step 1: Scale features using StandardScaler
-]) # End of numeric pipeline
-
-categorical_transformer = Pipeline(steps=[ # Define a pipeline for categorical feature transformation
-    ("onehot", OneHotEncoder( # Step 1: Encode features using OneHotEncoder
-        drop="first", # Drop the first category to avoid multicollinearity
-        handle_unknown="ignore" # Ignore unknown categories during transformation
-    )) # End of OneHotEncoder config
-]) # End of categorical pipeline
-
-preprocessor = ColumnTransformer( # Combine transformations using ColumnTransformer
-    transformers=[ # List of transformers
-        ("num", numeric_transformer, numerical_features), # Apply numeric pipeline to numerical features
-        ("cat", categorical_transformer, categorical_features) # Apply categorical pipeline to categorical features
-    ] # End of transformer list
-) # End of ColumnTransformer definition
-
-# =====================
-# 16. FIT & TRANSFORM   # Fit and Transform Header
-# =====================
-
-X_train_processed = preprocessor.fit_transform(X_train) # Fit preprocessor to training data and transform it
-X_test_processed = preprocessor.transform(X_test) # Transform testing data using the fitted preprocessor
-
-print("Shape after preprocessing (train):", X_train_processed.shape) # Print training shape after preprocessing
-print("Shape after preprocessing (test):", X_test_processed.shape) # Print testing shape after preprocessing
-
-# =====================
-# 17. SAVE ARTIFACTS    # Save Artifacts Header
-# =====================
-
-dump(preprocessor, ARTIFACTS_DIR / "preprocessor.joblib") # Save the fitted preprocessor to a joblib file
-
-np.save(ARTIFACTS_DIR / "y_train.npy", y_train) # Save training labels to a numpy file
-np.save(ARTIFACTS_DIR / "y_test.npy", y_test) # Save testing labels to a numpy file
-
-np.savez(ARTIFACTS_DIR / "X_train.npz", X=X_train_processed) # Save processed training features to a compressed numpy archive
-np.savez(ARTIFACTS_DIR / "X_test.npz", X=X_test_processed) # Save processed testing features to a compressed numpy archive
-
-print(f"\nArtifacts saved to: {ARTIFACTS_DIR.resolve()}") # Print the absolute path where artifacts were saved
+# --- ENTRY POINT ---
+if __name__ == "__main__":
+    if "--plots" in sys.argv:
+        # Simple menu for plotting if run directly with --plots
+        while True:
+            console.print("\n[bold]EDA Menu:[/bold] [1] Correlation [2] Target Dist [3] Features [q] Quit")
+            choice = input("Select: ").strip().lower()
+            if choice == '1': show_correlation_matrix()
+            elif choice == '2': show_target_distribution()
+            elif choice == '3': show_feature_plots()
+            elif choice == 'q': break
