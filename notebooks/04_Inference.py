@@ -10,9 +10,11 @@ import pandas as pd # Import pandas for data handling
 import numpy as np # Import numpy for numerical operations
 from pathlib import Path # Import Path for robust filesystem path manipulation
 from joblib import load # Import load from joblib to retrieve saved models
+import tensorflow as tf # Import tensorflow for Keras model loading
 
 # --- DIAGNOSTIC & STABILITY ---                                        # Stability Section
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True' # Fix for common segmentation fault on macOS/Anaconda
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Force CPU
 # ------------------------------
 
 # Define project paths                                                  # Path Definition Section
@@ -21,8 +23,6 @@ ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the artifacts directory path
 DB_PATH = PROJECT_ROOT / "patients_data.db" # Define the path for the SQL database
 
 # Clinical Glossary and Mapping Logic                                   # Mapping Section
-# These must match the mappings used in Module 01.
-
 CLINICAL_GUIDE = { # Define glossary
     "Age": "Patient's age in years.",
     "Gender": "Male or Female.",
@@ -46,12 +46,11 @@ CLINICAL_GUIDE = { # Define glossary
     "Homocysteine Level": "Homocysteine level."
 } # End glossary
 
-# Mapping dictionaries for conversion                                   # Conversion Dictionaries
-MAPPINGS = {
+MAPPINGS = { # Define conversion dictionaries
     "Binary": {"Yes": 1, "No": 0, "Male": 1, "Female": 0},
     "Ordinal_Basic": {"Low": 0, "Medium": 1, "High": 2},
     "Ordinal_Alcohol": {"None": 0, "Low": 1, "Medium": 2, "High": 3}
-} # End mapping dicts
+} # End mappings
 
 def init_db(): # Define function to initialize the SQL database
     conn = sqlite3.connect(DB_PATH) # Connect
@@ -68,7 +67,7 @@ def init_db(): # Define function to initialize the SQL database
             [Fasting Blood Sugar] REAL, [CRP Level] REAL, [Homocysteine Level] REAL,
             Prediction INTEGER, Probability REAL, Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    ''') # Create table
+    ''') # Create table with new schema
     conn.commit() # Commit
     conn.close() # Close
 
@@ -82,95 +81,81 @@ def save_to_db(data, prediction, probability): # Define function to save data to
 
 def get_interactive_input(): # Define function for manual patient data entry
     print("\n--- NEW PATIENT DATA ENTRY ---") # Print header
-    raw_data = {} # To store string inputs for SQL
-    numeric_data = {} # To store converted values for Model
-
+    raw_data = {} # Raw input for DB
+    numeric_data = {} # Converted for Model
     for key, explanation in CLINICAL_GUIDE.items(): # Iterate glossary
-        print(f"\n[GUIDE] {key}: {explanation}") # Print glossary info as requested
-        while True: # Validation loop
+        print(f"\n[GUIDE] {key}: {explanation}") # Print guide
+        while True: # Validation
             val = input(f"Enter {key}: ").strip() # Get input
-            if not val: # Check empty
-                print("Input required.") # Print error
-                continue # Retry
-
-            raw_data[key] = [val] # Store raw for SQL
-
-            # Conversion Logic                                          # Conversion Section
-            try:
+            if not val: continue # Require input
+            raw_data[key] = [val] # Store raw
+            try: # Try conversion
                 if key in ["Age", "Blood Pressure", "Cholesterol Level", "BMI", "Sleep Hours", "Triglyceride Level", "Fasting Blood Sugar", "CRP Level", "Homocysteine Level"]:
-                    numeric_data[key] = [float(val)] # Convert to float
+                    numeric_data[key] = [float(val)] # Num
                 elif key in ["Smoking", "Family Heart Disease", "Diabetes", "High Blood Pressure", "Low HDL Cholesterol", "High LDL Cholesterol", "Gender"]:
-                    if val not in MAPPINGS["Binary"]: raise ValueError("Use Yes/No or Male/Female")
-                    numeric_data[key] = [MAPPINGS["Binary"][val]] # Convert binary
+                    numeric_data[key] = [MAPPINGS["Binary"][val]] # Bin
                 elif key == "Alcohol Consumption":
-                    if val not in MAPPINGS["Ordinal_Alcohol"]: raise ValueError("Use None/Low/Medium/High")
-                    numeric_data[key] = [MAPPINGS["Ordinal_Alcohol"][val]] # Convert alcohol
-                else: # Habits, Stress, Sugar
-                    if val not in MAPPINGS["Ordinal_Basic"]: raise ValueError("Use Low/Medium/High")
-                    numeric_data[key] = [MAPPINGS["Ordinal_Basic"][val]] # Convert ordinal
-                break # Exit loop
-            except ValueError as e: # Handle conversion error
-                print(f"ERROR: {e}") # Print error
+                    numeric_data[key] = [MAPPINGS["Ordinal_Alcohol"][val]] # Alc
+                else: numeric_data[key] = [MAPPINGS["Ordinal_Basic"][val]] # Basic
+                break # Success
+            except KeyError: print("Invalid category name.") # Cat error
+            except ValueError: print("Enter a numeric value.") # Num error
+    return pd.DataFrame(raw_data), pd.DataFrame(numeric_data) # Return DataFrames
 
-    return pd.DataFrame(raw_data), pd.DataFrame(numeric_data) # Return both
+def predict_single(preprocessor, model, model_type): # Define single prediction flow
+    raw_df, numeric_df = get_interactive_input() # Get input
+    try: # Inference block
+        processed = preprocessor.transform(numeric_df) # Preprocess
+        if model_type == "keras": # If Deep Learning
+            prob = model.predict(processed, verbose=0)[0][0] # Get prob
+            pred = 1 if prob >= 0.5 else 0 # Threshold
+        else: # If Classical ML
+            pred = model.predict(processed)[0] # Get class
+            prob = model.predict_proba(processed)[0][1] if hasattr(model, "predict_proba") else 0.0 # Prob
 
-def predict_single(preprocessor, model): # Define function for single patient prediction flow
-    raw_df, numeric_df = get_interactive_input() # Get data
+        print("\n--- PREDICTION RESULTS ---") # Print
+        print(f"RESULT: {'Presence Detected' if pred == 1 else 'No Disease detected'}") # Out
+        print(f"Model Probability: {prob:.2%}") # Out
+        save_to_db(raw_df, pred, prob) # Persist
+        print("\n[DB] Record saved.") # Conf
+    except Exception as e: print(f"Prediction Error: {e}") # Err
 
-    try: # Prediction block
-        processed = preprocessor.transform(numeric_df) # Transform numeric data
-        prediction = model.predict(processed)[0] # Predict
-        prob = model.predict_proba(processed)[0][1] if hasattr(model, "predict_proba") else 0.0 # Prob
-
-        print("\n--- PREDICTION RESULTS ---") # Print results
-        print(f"RESULT: {'Heart Disease Detected' if prediction == 1 else 'No Disease detected'}") # Output
-        print(f"Confidence: {prob:.2%}") # Output
-
-        save_to_db(raw_df, prediction, prob) # Save raw strings to SQL for history
-        print("\n[DB] Patient record saved.") # Confirmation
-    except Exception as e: # Catch errors
-        print(f"Prediction Error: {e}") # Output
-
-def batch_predict_from_db(preprocessor, model): # Define batch function
+def batch_predict_from_db(preprocessor, model, model_type): # Define batch prediction
     conn = sqlite3.connect(DB_PATH) # Connect
     try: # Block
         df = pd.read_sql_query("SELECT * FROM patients", conn) # Load
-        if df.empty: # Check
-            print("\nDatabase empty.") # Print
-            return # Exit
-
-        # We need to map strings in DB to numbers for re-prediction       # Re-mapping block
-        df_numeric = df.copy().drop(columns=['id', 'Prediction', 'Probability', 'Timestamp']) # Drop meta
-        for col in df_numeric.columns: # Iterate
+        if df.empty: return print("DB Empty.") # Check
+        df_numeric = df.copy().drop(columns=['id', 'Prediction', 'Probability', 'Timestamp']) # Clean
+        for col in df_numeric.columns: # Re-map strings to numbers
             if col in ["Age", "Blood Pressure", "Cholesterol Level", "BMI", "Sleep Hours", "Triglyceride Level", "Fasting Blood Sugar", "CRP Level", "Homocysteine Level"]:
-                df_numeric[col] = df_numeric[col].astype(float) # Ensure float
+                df_numeric[col] = df_numeric[col].astype(float)
             elif col in ["Smoking", "Family Heart Disease", "Diabetes", "High Blood Pressure", "Low HDL Cholesterol", "High LDL Cholesterol", "Gender"]:
-                df_numeric[col] = df_numeric[col].map(MAPPINGS["Binary"]) # Map binary
+                df_numeric[col] = df_numeric[col].map(MAPPINGS["Binary"])
             elif col == "Alcohol Consumption":
-                df_numeric[col] = df_numeric[col].map(MAPPINGS["Ordinal_Alcohol"]) # Map alcohol
-            else: # Basic ordinals
-                df_numeric[col] = df_numeric[col].map(MAPPINGS["Ordinal_Basic"]) # Map ordinal
+                df_numeric[col] = df_numeric[col].map(MAPPINGS["Ordinal_Alcohol"])
+            else: df_numeric[col] = df_numeric[col].map(MAPPINGS["Ordinal_Basic"])
 
-        processed = preprocessor.transform(df_numeric) # Transform
-        df['New_Prediction'] = model.predict(processed) # Predict
-        print("\n--- BATCH RESULTS ---") # Print
-        print(df[['id', 'Age', 'Gender', 'Prediction', 'New_Prediction']]) # Show
-    except Exception as e: # Catch
-        print(f"Batch Error: {e}") # Output
-    finally: # Close
-        conn.close() # Close
+        processed = preprocessor.transform(df_numeric) # Preprocess
+        if model_type == "keras": # DL
+            df['New_Prob'] = model.predict(processed, verbose=0).ravel()
+            df['New_Pred'] = (df['New_Prob'] >= 0.5).astype(int)
+        else: # Sklearn
+            df['New_Pred'] = model.predict(processed)
+        print("\n--- BATCH RESULTS ---") # Header
+        print(df[['id', 'Age', 'Gender', 'Prediction', 'New_Pred']]) # Show
+    except Exception as e: print(f"Batch Error: {e}") # Err
+    finally: conn.close() # Close
 
 def main(): # Local main
-    init_db() # Init DB
-    try: # Load artifacts
-        if not (ARTIFACTS_DIR / "preprocessor.joblib").exists(): raise FileNotFoundError("preprocessor.joblib missing")
-        preprocessor = load(ARTIFACTS_DIR / "preprocessor.joblib") # Load
-        model = load(ARTIFACTS_DIR / "best_model_classic.joblib") # Load
-    except Exception as e: # Catch
-        print(f"Error loading artifacts: {e}") # Output
-        return # Exit
+    init_db() # Ensure DB
+    try: # Loading block
+        preprocessor = load(ARTIFACTS_DIR / "preprocessor.joblib") # Load prep
+        with open(ARTIFACTS_DIR / "model_type.txt", "r") as f: model_type = f.read().strip() # Get type
+        if model_type == "keras": model = tf.keras.models.load_model(ARTIFACTS_DIR / "best_model_unified.keras") # Load DL
+        else: model = load(ARTIFACTS_DIR / "best_model_unified.joblib") # Load ML
+    except Exception as e: return print(f"Load Error: {e}. Run Module 01 & 02.") # Handle missing
 
-    if "--batch" in sys.argv: batch_predict_from_db(preprocessor, model) # Batch mode
-    else: predict_single(preprocessor, model) # Single mode
+    if "--batch" in sys.argv: batch_predict_from_db(preprocessor, model, model_type) # Batch
+    else: predict_single(preprocessor, model, model_type) # Single
 
-if __name__ == "__main__": main() # Run
+if __name__ == "__main__": main() # Start

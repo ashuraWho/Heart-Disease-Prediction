@@ -53,7 +53,7 @@ def show_clinical_guide(): # Define a function to display clinical parameter exp
         "Exercise Habits": "Regular physical activity level (Low, Medium, High).",
         "Smoking": "Current smoking status (Yes/No).",
         "Family Heart Disease": "History of heart disease in family (Yes/No).",
-        "Diabetes": "Diabetes diagnosis (Yes/No).",
+        "Diabetes": "Whether the patient has a diabetes diagnosis (Yes/No).",
         "BMI": "Body Mass Index (weight / height^2).",
         "High Blood Pressure": "Pre-existing hypertension (Yes/No).",
         "Low HDL Cholesterol": "Presence of low 'good' cholesterol (Yes/No).",
@@ -82,8 +82,8 @@ def eda_interactive_menu(): # Define sub-menu for EDA plots
 
         choice = input("\nSelect an option: ").lower() # Get choice
         match choice: # Match-case
-            case '1': run_module("01_EDA_Preprocessing.py", args=["--plots"]) # Pass arg for matrix
-            case '2': run_module("01_EDA_Preprocessing.py", args=["--plots"]) # Note: Logic in 01 handles it
+            case '1': run_module("01_EDA_Preprocessing.py", args=["--plots"]) # Pass arg
+            case '2': run_module("01_EDA_Preprocessing.py", args=["--plots"]) # Pass arg
             case '3': run_module("01_EDA_Preprocessing.py", args=["--plots"]) # Pass arg
             case 'q': break # Exit sub-menu
             case _: print("Invalid selection.")
@@ -109,40 +109,34 @@ def main_menu(): # Define the main menu loop
         clear_screen() # Clear the terminal
         print_header("HEART DISEASE PREDICTION SYSTEM - CLINICAL DASHBOARD") # Print system header
         print("1. [Data] EDA & Visual Analysis (Interactive Plots)") # Option 1
-        print("2. [Training] Train Classical ML Models (Balanced Scoring)") # Option 2
+        print("2. [Training] Unified Model Competition (ML vs DL)") # Option 2
         print("3. [XAI] Explainability (SHAP Analysis) - Why the prediction?") # Option 3
-        print("4. [Research] Deep Learning Approach (Neural Network)") # Option 4
-        print("5. [Patient] Predict for a New Patient (Manual Entry & SQL Save)") # Option 5
-        print("6. [History] Batch Predict all Patients in Database") # Option 6
-        print("7. [Knowledge] Clinical Glossary (Definitions)") # Option 7
+        print("4. [Patient] Predict for a New Patient (Manual Entry & SQL Save)") # Option 4
+        print("5. [History] Batch Predict all Patients in Database") # Option 5
+        print("6. [Knowledge] Clinical Glossary (Definitions)") # Option 6
         print("d. [Maintenance] Delete SQL Patient Database") # Delete DB option
         print("r. [Maintenance] Reset ML Artifacts (Regenerate Models)") # Reset option
         print("q. Exit System") # Exit option
         print("-" * 60) # Print separator
         print("Tip: Run Module 1 & 2 first to enable Predictions and XAI.") # Helpful tip
 
-        choice = input("\nSelect an option (1-7, d, r or q): ").lower() # Get user choice
+        choice = input("\nSelect an option (1-6, d, r or q): ").lower() # Get user choice
 
         match choice: # Use match-case for structural navigation
             case '1': eda_interactive_menu() # Run EDA sub-menu
-            case '2': # Classic ML
-                run_module("02_ML_Classic.py") # Run
+            case '2': # Unified Training
+                run_module("02_Unified_Training.py") # Run new module
                 input("\nPress Enter...") # Pause
             case '3': # Explainability
-                print("\n[XAI] This module explains which features weighed most in the model's decision.")
                 run_module("03_Explainability.py") # Run
                 input("\nPress Enter...") # Pause
-            case '4': # Deep Learning
-                print("\n[DL] Training an advanced neural network for complex patterns.")
-                run_module("04_Deep_Learning.py") # Run
+            case '4': # Inference
+                run_module("04_Inference.py") # Run
                 input("\nPress Enter...") # Pause
-            case '5': # Inference
-                run_module("05_Inference.py") # Run
+            case '5': # Batch Prediction
+                run_module("04_Inference.py", args=["--batch"]) # Run in batch
                 input("\nPress Enter...") # Pause
-            case '6': # Batch Prediction
-                run_module("05_Inference.py", args=["--batch"]) # Run
-                input("\nPress Enter...") # Pause
-            case '7': # Glossary
+            case '6': # Glossary
                 show_clinical_guide() # Show
             case 'd': # Delete DB
                 delete_database() # Call

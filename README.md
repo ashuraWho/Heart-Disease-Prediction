@@ -1,84 +1,72 @@
-# Heart Disease Prediction: A Robust and Explainable ML Pipeline (V2)
+# Heart Disease Prediction: A Robust and Explainable ML Pipeline (V3)
 
 ## 🌟 Project Vision & Mission
 
 **What we are doing:**
-This project is an end-to-end Machine Learning ecosystem designed to predict the presence of heart disease using an expanded clinical dataset of 21 parameters. We have built a robust, persistent, and highly documented pipeline that transforms complex medical observations into Actionable Clinical Intelligence.
+This project is an end-to-end Machine Learning ecosystem designed to predict heart disease using a comprehensive 21-parameter clinical schema. We have unified classical statistical models and Deep Learning into a single competitive training framework to ensure we always use the most accurate mathematical approach for your specific data environment.
 
 **Where we are going:**
-We aim to empower medical professionals with a guided Decision Support System. By combining persistent SQL storage, interactive data entry, and Explainable AI (SHAP), we provide a tool that not only predicts risk but also explains the underlying clinical factors, fostering trust between the algorithm and the clinician.
+We aim to provide a reliable, persistent Clinical Decision Support System. By integrating SQL storage, automated model competition, and Explainable AI (SHAP), we provide clinicians with a tool that doesn't just give a "Yes/No" but also provides a "Why" backed by historical patient data.
 
 ---
 
 ## 🏥 Clinical Dataset Structure (21 Columns)
 
-The system is now optimized for an expanded dataset including:
+The system is optimized for:
 - **Demographics:** Age, Gender.
-- **Vitals:** Blood Pressure (Systolic), BMI, Sleep Hours.
-- **Biochemistry:** Cholesterol Level, Triglyceride Level, Fasting Blood Sugar, CRP Level (Inflammation), Homocysteine Level.
-- **Lifestyle:** Exercise Habits, Smoking, Alcohol Consumption, Stress Level, Sugar Consumption.
-- **History:** Family Heart Disease, Diabetes, Pre-existing High BP, Low HDL, High LDL.
+- **Vitals:** Blood Pressure, BMI, Sleep Hours.
+- **Biochemistry:** Cholesterol, Triglycerides, Fasting Sugar, CRP, Homocysteine.
+- **Lifestyle:** Exercise, Smoking, Alcohol, Stress, Sugar.
+- **History:** Family History, Diabetes, Hypertension, HDL/LDL levels.
 - **Target:** Heart Disease Status (Yes/No).
 
 ---
 
 ## 🛠 Architectural Decisions & Motivations
 
-### 1. SQL Persistence
-- **Motivation:** Patient data should not be lost between sessions.
-- **Solution:** Integrated an SQLite database (`patients_data.db`). Every interactive prediction is automatically logged with a timestamp, allowing for historical review and batch re-processing.
+### 1. Unified Model Competition (ML vs DL)
+- **Motivation:** Deep Learning is not always better for small tabular datasets.
+- **Solution:** Module 02 now automatically trains multiple classical models (LR, SVM, RF) and a Neural Network. It evaluates all using the **F1-Score** (to balance False Positives and False Negatives) and automatically saves the "Winner" as the active production model.
 
-### 2. Interactive Decision Support
-- **Motivation:** Clinicians need a guided experience.
-- **Solution:** Option 5 in the dashboard provides a step-by-step input flow with integrated clinical definitions for every parameter.
+### 2. Explicit Feature Mapping
+- **Motivation:** String labels prevent mathematical analysis (correlations).
+- **Solution:** Module 01 now maps all text (e.g., "High", "Male", "Yes") into standardized numeric scales. This reduces model bias and enables the generation of high-quality correlation heatmaps.
 
-### 3. Data Integrity (Missing Values)
-- **Motivation:** Real-world medical data is often incomplete.
-- **Solution:** Module 01 now strictly enforces `df.dropna()` to ensure the model is trained only on high-quality, complete clinical records.
+### 3. Persistent SQL Registry
+- **Motivation:** Historical clinical records are vital for patient tracking.
+- **Solution:** Integrated SQLite (`patients_data.db`). All predictions are logged, allowing for batch re-runs if the underlying models are updated.
 
 ---
 
 ## 📂 Pipeline Modules
 
-- **Module 01: EDA & Preprocessing:** Handles the new 21-column schema and removes missing values.
-- **Module 02: Classical ML:** Trains and tunes Logistic Regression, KNN, SVM, and Random Forest.
-- **Module 03: Explainability:** Uses SHAP to visualize the weight of clinical factors.
-- **Module 04: Deep Learning:** Multi-Layer Perceptron with robust regularization.
-- **Module 05: Real-World Inference:** The interactive interface for patient data entry and SQL storage.
-- **Main Dashboard (`main.py`):** The central command center with match-case navigation.
+- **Module 01: EDA & Preprocessing:** Data cleaning, explicit mapping, and interactive plotting.
+- **Module 02: Unified Training:** The competition between ML and DL models.
+- **Module 03: Explainability (XAI):** SHAP analysis explaining the "Winner's" decisions.
+- **Module 04: Real-World Inference:** The interactive clinic interface and SQL logger.
+- **Main Dashboard (`main.py`):** The central orchestration menu.
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. Environment Setup
-```bash
-chmod +x setup_mac.sh
-./setup_mac.sh
-conda activate heart_disease
-python -m pip install -r requirements.txt
-```
-
-### 2. Integrated Dashboard
-Launch the unified interface:
+### 1. Integrated Dashboard
 ```bash
 python main.py
 ```
 
+### 2. Maintenance
+- **System Reset:** If you change your Python environment, use the 'r' option in the menu to clear artifacts and regenerate models locally.
+- **Database Clear:** Use the 'd' option to wipe all stored patient history.
+
 ---
 
-## 🛑 Maintenance & Troubleshooting
-
-### Reset Options
-- **Option 'd':** Deletes the SQL database if you want to clear patient history.
-- **Option 'r':** Resets all ML artifacts (models/preprocessors). Use this if you change your environment or see an `AttributeError`.
-
-### macOS SegFaults
-The system includes `KMP_DUPLICATE_LIB_OK`, `OMP_NUM_THREADS=1`, and `CUDA_VISIBLE_DEVICES=-1` to ensure maximum stability on Mac/Anaconda.
+## 🛑 Technical Stability (macOS / Anaconda)
+The system is pre-configured with `KMP_DUPLICATE_LIB_OK=True` and `OMP_NUM_THREADS=1` to prevent crashes common on Mac machines. It also defaults to **CPU execution** for maximum stability.
 
 ---
 
 ## 🗺 Roadmap
-- [ ] Integration of SMOTE for class balancing.
-- [ ] Automated PDF Report Generation for patients.
-- [ ] REST API integration for Hospital Information Systems (HIS).
+- [ ] Integration of Synthetic Minority Over-sampling Technique (SMOTE).
+- [ ] PDF Report Generation for patient consults.
+- [ ] Integration with EHR (Electronic Health Record) standards.
