@@ -1,4 +1,4 @@
-# 🫀 Heart Disease Prediction: A Robust and Explainable ML Pipeline
+# Heart Disease Prediction: A Robust and Explainable ML Pipeline
 
 ## 🌟 Project Vision & Mission
 
@@ -63,6 +63,13 @@ Advanced predictive modeling.
 - **Motivations:** For complex patterns, we use a Multi-Layer Perceptron.
 - **Robustness:** We use heavy regularization (L2, Dropout, Batch Normalization) to prevent the neural network from overfitting on this relatively small tabular dataset.
 
+### Module 05: Real-World Inference & SQL Storage
+The final utility of the project.
+- **Interactive Input:** This module allows medical professionals to manually enter a patient's clinical data, with on-screen explanations for every parameter.
+- **SQL Integration:** All entered patient data and their corresponding predictions are automatically saved to a local SQLite database (`patients_data.db`).
+- **Batch Processing:** A dedicated feature allows re-running predictions for all patients stored in the database, ensuring consistency if the underlying models are updated.
+- **Value:** It demonstrates the transition from a training pipeline to a functional, persistent medical decision-support tool.
+
 ---
 
 ## 🚀 Getting Started
@@ -81,12 +88,37 @@ python -m pip install -r requirements.txt
 pip install -r requirements.txt
 ```
 
-### 3. Execution Order
-Always run the modules in sequence:
+### 3. Unified Dashboard (Recommended)
+You can run the entire system through the integrated CLI dashboard:
+```bash
+python main.py
+```
+This provides a guided menu to run each module, view the clinical glossary, and make predictions.
+
+### 4. Manual Execution Order
+Alternatively, run the modules in sequence:
 1. `python notebooks/01_EDA_Preprocessing.py`
 2. `python notebooks/02_ML_Classic.py`
 3. `python notebooks/03_Explainability.py`
 4. `python notebooks/04_Deep_Learning.py`
+5. `python notebooks/05_Inference.py`
+
+---
+
+## 🏥 How to Predict Heart Disease for a New Patient
+
+The system provides a guided, interactive way to predict heart disease for new patients.
+
+### Using the Dashboard:
+1.  Run the dashboard: `python main.py`.
+2.  Select **Option 5** (Predict for a New Patient).
+3.  The system will prompt you for each clinical value, providing a description of what it means (e.g., "Thallium Stress Test Result").
+4.  After the final input, the system displays the prediction, confidence levels, and clinical suggestions.
+5.  The data is automatically saved to the SQL database.
+
+### Batch Predictions:
+1.  Select **Option 6** in the dashboard.
+2.  The system will load all previously entered patients from the SQL database and display their updated predictions.
 
 ---
 
@@ -99,6 +131,11 @@ Always run the modules in sequence:
 2. `python notebooks/04_Deep_Learning.py`
 
 Running with an absolute path to the Anaconda base Python will bypass your environment and trigger a crash.
+
+### ⚠️ Library Versioning & "AttributeError"
+Machine Learning models saved as `.joblib` or `.pkl` are sensitive to library versions. If you see an error like `AttributeError: Can't get attribute '_RemainderColsList'`:
+1.  It means the current `scikit-learn` version is different from the one that saved the artifacts.
+2.  **Fix:** Run the pipeline from the start (**Option 1 and 2** in the dashboard) to regenerate artifacts for your specific system.
 
 ---
 

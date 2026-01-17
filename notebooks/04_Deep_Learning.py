@@ -246,3 +246,6 @@ model.save(ARTIFACTS_DIR / "nn_model.keras") # Save the trained Keras model to a
 #   • Generalizes better                                        # Advantage 1
 #   • Is more interpretable                                     # Advantage 2
 #   • Is less computationally expensive                         # Advantage 3
+#
+# This script demonstrates methodological awareness             # Final Note 1
+# rather than naive use of Deep Learning.                       # Final Note 2

@@ -37,8 +37,14 @@ ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the artifacts directory path
 # LOAD ARTIFACTS        # Load Artifacts Header
 # ===================== # Header Section
 
-preprocessor = load(ARTIFACTS_DIR / "preprocessor.joblib") # Load the saved preprocessing pipeline
-model = load(ARTIFACTS_DIR / "best_model_classic.joblib") # Load the best classical model
+try: # Start safety block for library version compatibility
+    preprocessor = load(ARTIFACTS_DIR / "preprocessor.joblib") # Load the saved preprocessing pipeline
+    model = load(ARTIFACTS_DIR / "best_model_classic.joblib") # Load the best classical model
+except (AttributeError, KeyError, Exception) as e: # Catch errors caused by scikit-learn version mismatches
+    print(f"ERROR: Compatibility issue detected while loading artifacts: {e}") # Print the error
+    print("\n[CRITICAL] Your environment version of scikit-learn likely differs from the one that saved the artifacts.") # Suggest cause
+    print(">>> FIX: Please run 'Module 01' and 'Module 02' again to regenerate artifacts for your system.") # Suggest fix
+    sys.exit(1) # Exit the script
 
 X_test = np.load(ARTIFACTS_DIR / "X_test.npz")["X"] # Load preprocessed testing features
 y_test = np.load(ARTIFACTS_DIR / "y_test.npy") # Load testing labels

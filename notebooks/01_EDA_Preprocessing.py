@@ -1,11 +1,11 @@
-# ============================================================ # Module 01 – EDA & Preprocessing
-# NOTEBOOK 1 – EDA & PREPROCESSING                             # Heart Disease Prediction Dataset
-# Heart Disease Prediction Dataset                             # Global Header
-# ============================================================ # Global Header
+# ============================================================
+# NOTEBOOK 1 – EDA & PREPROCESSING                            
+# Heart Disease Prediction Dataset                            
+# ============================================================
 
-# ===================== # Header Section
-# 1. IMPORT LIBRARIES   # Import Libraries Header
-# ===================== # Header Section
+# =====================
+# 1. IMPORT LIBRARIES  
+# =====================
 
 import os # Import os for environment variable manipulation
 import sys # Import sys to check the Python environment
@@ -20,23 +20,23 @@ if "anaconda3/bin/python" in sys.executable or "miniconda3/bin/python" in sys.ex
 
 from pathlib import Path # Import Path for filesystem path manipulation
 
-import pandas as pd                  # Import pandas for data manipulation and tabular data handling
-import numpy as np                   # Import numpy for numerical computations and array operations
+import pandas as pd # Import pandas for data manipulation and tabular data handling
+import numpy as np # Import numpy for numerical computations and array operations
 
-import matplotlib.pyplot as plt      # Import matplotlib for low-level plotting
-import seaborn as sns                # Import seaborn for statistical data visualization
+import matplotlib.pyplot as plt # Import matplotlib for low-level plotting
+import seaborn as sns # Import seaborn for statistical data visualization
 
-from sklearn.model_selection import train_test_split   # Import train_test_split for splitting data
-from sklearn.preprocessing import StandardScaler       # Import StandardScaler for numerical feature scaling
-from sklearn.preprocessing import OneHotEncoder        # Import OneHotEncoder for categorical feature encoding
-from sklearn.compose import ColumnTransformer           # Import ColumnTransformer for selective preprocessing
-from sklearn.pipeline import Pipeline                   # Import Pipeline for reproducible ML workflows
+from sklearn.model_selection import train_test_split # Import train_test_split for splitting data
+from sklearn.preprocessing import StandardScaler # Import StandardScaler for numerical feature scaling
+from sklearn.preprocessing import OneHotEncoder # Import OneHotEncoder for categorical feature encoding
+from sklearn.compose import ColumnTransformer # Import ColumnTransformer for selective preprocessing
+from sklearn.pipeline import Pipeline # Import Pipeline for reproducible ML workflows
 
 from joblib import dump # Import dump from joblib to save Python objects to disk
 
-# ===================== # Header Section
-# 2. GLOBAL CONFIG      # Global Configuration Header
-# ===================== # Header Section
+# =====================
+# 2. GLOBAL CONFIG     
+# =====================
 
 sns.set(style="whitegrid") # Redundant set style (maintained for completeness)
 plt.rcParams["figure.figsize"] = (10, 6) # Redundant set rcParams (maintained for completeness)
@@ -44,9 +44,9 @@ plt.rcParams["figure.figsize"] = (10, 6) # Redundant set rcParams (maintained fo
 RANDOM_STATE = 42 # Set a random state for reproducibility
 TEST_SIZE = 0.2 # Set the proportion of the dataset to include in the test split
 
-# ===================== # Header Section
-# 3. PATH HANDLING      # Path Handling Header
-# ===================== # Header Section
+# =====================
+# 3. PATH HANDLING     
+# =====================
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1] # Define the root directory of the project
 DATA_DIR = PROJECT_ROOT / "data" # Define the data directory path
@@ -56,26 +56,26 @@ DATASET_PATH = DATA_DIR / "Heart_Disease_Prediction.csv" # Define the path to th
 
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True) # Create the artifacts directory if it doesn't exist
 
-# ===================== # Header Section
-# 4. LOAD DATASET       # Load Dataset Header
-# ===================== # Header Section
+# =====================
+# 4. LOAD DATASET      
+# =====================
 
 df = pd.read_csv(DATASET_PATH) # Load the dataset into a pandas DataFrame
 
 print(f"Dataset loaded from: {DATASET_PATH}") # Print the dataset source path
 print(df.head()) # Print the first five rows of the DataFrame
 
-# ===================== # Header Section
+# =====================
 # 5. DATASET OVERVIEW    # Dataset Overview Header
-# ===================== # Header Section
+# =====================
 
 print(f"Number of rows: {df.shape[0]}") # Print the total number of rows in the dataset
 print(f"Number of columns: {df.shape[1]}") # Print the total number of columns in the dataset
 df.info() # Print a concise summary of the DataFrame
 
-# ===================== # Header Section
+# =====================
 # 6. COLUMN RENAMING & TARGET ENCODING # Renaming and Encoding Header
-# ===================== # Header Section
+# =====================
 
 rename_dict = { # Define a dictionary for renaming columns to shorter, clearer names
     "Chest pain type": "ChestPain", # Mapping 'Chest pain type' to 'ChestPain'
@@ -99,9 +99,9 @@ df["HeartDisease"] = df["HeartDisease"].map({ # Map target labels to numerical v
 print("Columns after renaming:") # Print message indicating upcoming column list
 print(df.columns) # Print the updated column names
 
-# ===================== # Header Section
+# =====================
 # 7. DATA QUALITY CHECKS # Data Quality Checks Header
-# ===================== # Header Section
+# =====================
 
 print("\nMissing values per column:") # Print header for missing values report
 print(df.isnull().sum()) # Print the count of missing values for each column
@@ -109,9 +109,9 @@ print(df.isnull().sum()) # Print the count of missing values for each column
 duplicates = df.duplicated().sum() # Count the number of duplicate rows in the DataFrame
 print(f"\nNumber of duplicate rows: {duplicates}") # Print the count of duplicate rows
 
-# ===================== # Header Section
+# =====================
 # 8. TARGET ANALYSIS    # Target Analysis Header
-# ===================== # Header Section
+# =====================
 
 sns.countplot(x="HeartDisease", data=df) # Create a count plot for the target variable
 plt.title("Target Distribution (HeartDisease)") # Set the title of the target distribution plot
@@ -119,9 +119,9 @@ plt.show() # Display the target distribution plot
 
 print(df["HeartDisease"].value_counts(normalize=True) * 100) # Print the normalized value counts (percentages) for the target
 
-# ===================== # Header Section
+# =====================
 # 9. FEATURE GROUPS     # Feature Groups Header
-# ===================== # Header Section
+# =====================
 
 numerical_features = [ # Define a list of numerical features
     "Age", "BP", "Cholesterol", "MaxHR", "ST_Depression" # Features: Age, Blood Pressure, Cholesterol, Max HR, ST Depression
@@ -132,9 +132,9 @@ categorical_features = [ # Define a list of categorical features
     "ExerciseAngina", "ST_Slope", "NumVessels", "Thallium" # Features: Exercise Angina, ST Slope, Num Vessels, Thallium
 ] # End of categorical features list
 
-# ===================== # Header Section
+# =====================
 # 10. EDA – NUMERICAL FEATURES # Numerical EDA Header
-# ===================== # Header Section
+# =====================
 
 for col in numerical_features: # Iterate through each numerical feature for visualization
     sns.histplot(df[col], kde=True) # Create a histogram with a Kernel Density Estimate (KDE)
@@ -145,9 +145,9 @@ for col in numerical_features: # Iterate through each numerical feature for visu
     plt.title(f"{col} vs HeartDisease") # Set the title for the box plot
     plt.show() # Display the box plot
 
-# ===================== # Header Section
+# =====================
 # 11. EDA – CATEGORICAL FEATURES # Categorical EDA Header
-# ===================== # Header Section
+# =====================
 
 for col in categorical_features: # Iterate through each categorical feature for visualization
     sns.countplot(x=col, hue="HeartDisease", data=df) # Create a count plot of the feature with target hue
@@ -155,25 +155,25 @@ for col in categorical_features: # Iterate through each categorical feature for 
     plt.legend(title="HeartDisease") # Add a legend for the target variable
     plt.show() # Display the count plot
 
-# ===================== # Header Section
+# =====================
 # 12. CORRELATION ANALYSIS # Correlation Analysis Header
-# ===================== # Header Section
+# =====================
 
 corr_matrix = df[numerical_features + ["HeartDisease"]].corr() # Calculate the correlation matrix for numerical features and target
 sns.heatmap(corr_matrix, annot=True, cmap="coolwarm") # Create a heatmap of the correlation matrix with annotations
 plt.title("Correlation Matrix") # Set the title for the correlation heatmap
 plt.show() # Display the correlation heatmap
 
-# ===================== # Header Section
+# =====================
 # 13. FEATURE / TARGET SPLIT # Data Split Header
-# ===================== # Header Section
+# =====================
 
 X = df.drop("HeartDisease", axis=1) # Create the feature matrix by dropping the target column
 y = df["HeartDisease"] # Create the target vector
 
-# ===================== # Header Section
+# =====================
 # 14. TRAIN / TEST SPLIT # Train/Test Split Header
-# ===================== # Header Section
+# =====================
 
 X_train, X_test, y_train, y_test = train_test_split( # Split data into training and testing sets
     X, # Feature matrix
@@ -186,9 +186,9 @@ X_train, X_test, y_train, y_test = train_test_split( # Split data into training 
 print("Train shape:", X_train.shape) # Print the shape of the training feature set
 print("Test shape:", X_test.shape) # Print the shape of the testing feature set
 
-# ===================== # Header Section
+# =====================
 # 15. PREPROCESSING PIPELINE # Preprocessing Pipeline Header
-# ===================== # Header Section
+# =====================
 
 numeric_transformer = Pipeline(steps=[ # Define a pipeline for numerical feature transformation
     ("scaler", StandardScaler()) # Step 1: Scale features using StandardScaler
@@ -208,9 +208,9 @@ preprocessor = ColumnTransformer( # Combine transformations using ColumnTransfor
     ] # End of transformer list
 ) # End of ColumnTransformer definition
 
-# ===================== # Header Section
+# =====================
 # 16. FIT & TRANSFORM   # Fit and Transform Header
-# ===================== # Header Section
+# =====================
 
 X_train_processed = preprocessor.fit_transform(X_train) # Fit preprocessor to training data and transform it
 X_test_processed = preprocessor.transform(X_test) # Transform testing data using the fitted preprocessor
@@ -218,9 +218,9 @@ X_test_processed = preprocessor.transform(X_test) # Transform testing data using
 print("Shape after preprocessing (train):", X_train_processed.shape) # Print training shape after preprocessing
 print("Shape after preprocessing (test):", X_test_processed.shape) # Print testing shape after preprocessing
 
-# ===================== # Header Section
+# =====================
 # 17. SAVE ARTIFACTS    # Save Artifacts Header
-# ===================== # Header Section
+# =====================
 
 dump(preprocessor, ARTIFACTS_DIR / "preprocessor.joblib") # Save the fitted preprocessor to a joblib file
 
