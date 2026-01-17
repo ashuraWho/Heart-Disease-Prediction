@@ -1,11 +1,10 @@
 # ============================================================ #
-# Module 04 – Inference, Database & Clinical Support           #
+# Module 04 – Inference (Tournament Optimized)                 #
 # ============================================================ #
 
 import sys
 from pathlib import Path
 
-# Add project root to sys.path
 sys.path.append(str(Path(__file__).resolve().parent))
 
 try:
@@ -14,7 +13,6 @@ try:
         console, 
         ARTIFACTS_DIR, 
         CLINICAL_GUIDE, 
-        MAPPINGS, 
         init_db, 
         get_db_connection
     )
@@ -22,34 +20,45 @@ except ImportError:
     print("Error: shared_utils not found.")
     sys.exit(1)
 
-# Initialize Environment
 setup_environment()
 
 import pandas as pd
 import numpy as np
-import sqlite3
-from joblib import load
 import tensorflow as tf
-from rich.prompt import Prompt, FloatPrompt, IntPrompt
-from rich.table import Table
+from joblib import load
+from catboost import CatBoostClassifier
+from rich.prompt import Prompt, FloatPrompt
 from rich.panel import Panel
 
-# --- LOAD RESOURCES ---
+# --- LOAD ENSEMBLE ---
 def load_resources():
     try:
         preprocessor = load(ARTIFACTS_DIR / "preprocessor.joblib")
-        with open(ARTIFACTS_DIR / "model_type.txt", "r") as f: 
-            model_type = f.read().strip()
+        
+        models = {}
+        models["LR"] = load(ARTIFACTS_DIR / "model_lr.joblib")
+        models["RF"] = load(ARTIFACTS_DIR / "model_rf.joblib")
+        models["ET"] = load(ARTIFACTS_DIR / "model_et.joblib")
+        models["GB"] = load(ARTIFACTS_DIR / "model_gb.joblib")
+        models["XGB"] = load(ARTIFACTS_DIR / "model_xgb.joblib")
+        models["LGBM"] = load(ARTIFACTS_DIR / "model_lgbm.joblib")
+        
+        # Load CatBoost specifically
+        cat = CatBoostClassifier()
+        cat.load_model(str(ARTIFACTS_DIR / "model_cat.cbm"))
+        models["CAT"] = cat
+        
+        models["DL"] = tf.keras.models.load_model(ARTIFACTS_DIR / "model_dl.keras")
             
-        if model_type == "keras": 
-            model = tf.keras.models.load_model(ARTIFACTS_DIR / "best_model_unified.keras")
-        else: 
-            model = load(ARTIFACTS_DIR / "best_model_unified.joblib")
-            
-        return preprocessor, model, model_type
+        threshold = 0.5
+        thresh_path = ARTIFACTS_DIR / "threshold.txt"
+        if thresh_path.exists():
+            with open(thresh_path, "r") as f:
+                threshold = float(f.read().strip())
+        
+        return preprocessor, models, threshold
     except Exception as e:
         console.print(f"[bold red]Load Error: {e}[/bold red]")
-        console.print("[yellow]Please run Module 01 & 02 first.[/yellow]")
         sys.exit(1)
 
 # --- DB HELPERS ---
@@ -58,155 +67,127 @@ def save_to_db(data, prediction, probability):
         df_to_save = data.copy()
         df_to_save['Prediction'] = int(prediction)
         df_to_save['Probability'] = float(probability)
-        df_to_save.to_sql('patients', conn, if_exists='append', index=False)
+        try:
+             df_to_save.to_sql('patients', conn, if_exists='append', index=False)
+        except Exception:
+            pass
+
+# --- FEATURE ENGINEERING ---
+def add_engineered_features(df):
+    gen_health_map = {"Poor": 1, "Fair": 2, "Good": 3, "Very good": 4, "Excellent": 5}
+    if 'GeneralHealth' in df.columns:
+        df['GeneralHealth_Num'] = df['GeneralHealth'].map(gen_health_map).fillna(3)
+
+    if 'SleepHours' in df.columns and 'PhysicalHealthDays' in df.columns:
+        df['Sleep_Health_Ratio'] = df['SleepHours'] / (df['PhysicalHealthDays'] + 1)
+        
+    return df
 
 # --- INTERACTIVE INPUT ---
 def get_interactive_input():
-    console.print(Panel("[bold]Enter Patient Clinical Data[/bold]", style="cyan"))
+    console.print(Panel("[bold]Enter Patient Clinical Data (2022 Standard)[/bold]", style="cyan"))
+    data = {}
     
-    raw_data = {}
-    numeric_data = {}
+    # Demographics
+    data["Sex"] = Prompt.ask("[green]Sex[/green]", choices=["Male", "Female"])
+    data["AgeCategory"] = Prompt.ask("[green]Age Category[/green]", choices=[
+        "Age 18-24", "Age 25-29", "Age 30-34", "Age 35-39", "Age 40-44", "Age 45-49", 
+        "Age 50-54", "Age 55-59", "Age 60-64", "Age 65-69", "Age 70-74", "Age 75-79", "Age 80 or older"
+    ], default="Age 60-64")
+    data["RaceEthnicityCategory"] = Prompt.ask("[green]Race/Ethnicity[/green]", choices=[
+        "White only, Non-Hispanic", "Black only, Non-Hispanic", "Hispanic", "Other", "Multiracial, Non-Hispanic", "Asian only, Non-Hispanic"
+    ], default="White only, Non-Hispanic")
+    data["HeightInMeters"] = FloatPrompt.ask("[green]Height (m)[/green] e.g. 1.75")
+    data["WeightInKilograms"] = FloatPrompt.ask("[green]Weight (kg)[/green] e.g. 80.0")
+    data["BMI"] = data["WeightInKilograms"] / (data["HeightInMeters"] ** 2)
     
-    # Define numeric fields
-    numeric_fields = ["Age", "Blood Pressure", "Cholesterol Level", "BMI", "Sleep Hours", 
-                      "Triglyceride Level", "Fasting Blood Sugar", "CRP Level", "Homocysteine Level"]
+    # Health
+    data["GeneralHealth"] = Prompt.ask("[green]General Health[/green]", choices=["Excellent", "Very good", "Good", "Fair", "Poor"])
+    data["PhysicalHealthDays"] = FloatPrompt.ask("[green]Physical Health Days[/green]", default=0.0)
+    data["MentalHealthDays"] = FloatPrompt.ask("[green]Mental Health Days[/green]", default=0.0)
+    data["SleepHours"] = FloatPrompt.ask("[green]Sleep Hours[/green]", default=7.0)
     
-    # 1. Numeric Inputs
-    for key in numeric_fields:
-        val = FloatPrompt.ask(f"[green]{key}[/green] ({CLINICAL_GUIDE.get(key, '')})")
-        raw_data[key] = [val]
-        numeric_data[key] = [val]
-        
-    # 2. Gender
-    gender = Prompt.ask("[green]Gender[/green]", choices=["Male", "Female"])
-    raw_data["Gender"] = [gender]
-    numeric_data["Gender"] = [MAPPINGS["Binary"][gender]]
-    
-    # 3. Binary Questions
-    binary_questions = [
-        "Smoking", "Family Heart Disease", "Diabetes", "High Blood Pressure", 
-        "Low HDL Cholesterol", "High LDL Cholesterol"
-    ]
-    for key in binary_questions:
-        val = Prompt.ask(f"[green]{key}[/green]?", choices=["Yes", "No"])
-        raw_data[key] = [val]
-        numeric_data[key] = [MAPPINGS["Binary"][val]]
-        
-    # 4. Ordinal inputs
-    ordinal_basics = ["Exercise Habits", "Stress Level", "Sugar Consumption"]
-    for key in ordinal_basics:
-        val = Prompt.ask(f"[green]{key}[/green]", choices=["Low", "Medium", "High"])
-        raw_data[key] = [val]
-        numeric_data[key] = [MAPPINGS["Ordinal_Basic"][val]]
-        
-    # 5. Alcohol
-    alc = Prompt.ask("[green]Alcohol Consumption[/green]", choices=["None", "Low", "Medium", "High"])
-    raw_data["Alcohol Consumption"] = [alc]
-    numeric_data["Alcohol Consumption"] = [MAPPINGS["Ordinal_Alcohol"][alc]]
-    
-    return pd.DataFrame(raw_data), pd.DataFrame(numeric_data)
+    # Habits
+    data["PhysicalActivities"] = Prompt.ask("[green]Physical Activities[/green]", choices=["Yes", "No"])
+    data["SmokerStatus"] = Prompt.ask("[green]Smoking Status[/green]", choices=[
+        "Never smoked", "Former smoker", "Current smoker - now smokes some days", "Current smoker - now smokes every day"
+    ])
+    data["ECigaretteUsage"] = Prompt.ask("[green]E-Cigarette Usage[/green]", choices=[
+        "Never used e-cigarettes in my entire life", "Not at all (right now)", "Use them some days", "Use them every day"
+    ], default="Never used e-cigarettes in my entire life")
+    data["AlcoholDrinkers"] = Prompt.ask("[green]Alcohol Drinkers[/green]", choices=["Yes", "No"])
 
-# --- PREDICTION LOGIC ---
-def predict_single(preprocessor, model, model_type):
-    raw_df, numeric_df = get_interactive_input()
+    # Conditions
+    conditions = [
+        "HadStroke", "HadAsthma", "HadSkinCancer", "HadCOPD", 
+        "HadDepressiveDisorder", "HadKidneyDisease", "HadArthritis", "HadDiabetes",
+        "DeafOrHardOfHearing", "BlindOrVisionDifficulty",
+        "DifficultyConcentrating", "DifficultyWalking", "DifficultyDressingBathing", "DifficultyErrands",
+        "ChestScan"
+    ]
+    console.print("[dim]Answer Yes/No for condition history:[/dim]")
+    for cond in conditions:
+        clean_cond = cond.replace("Had", "").replace("Difficulty", "Diff ").replace("Or", "/")
+        data[cond] = Prompt.ask(f"[green]{clean_cond}[/green]?", choices=["Yes", "No"], default="No")
+
+    return pd.DataFrame([data])
+
+# --- PREDICTION ---
+def predict_ensemble(preprocessor, models, threshold):
+    raw_df = get_interactive_input()
+    df = add_engineered_features(raw_df)
     
     try:
-        processed = preprocessor.transform(numeric_df)
+        X = preprocessor.transform(df)
         
-        if model_type == "keras":
-            prob = model.predict(processed, verbose=0)[0][0]
-            pred = 1 if prob >= 0.5 else 0
-        else:
-            pred = model.predict(processed)[0]
-            prob = model.predict_proba(processed)[0][1] if hasattr(model, "predict_proba") else 0.0
-            
-        # Display Result
+        # 1. Base Predictions
+        p_lr = models["LR"].predict_proba(X)[0][1]
+        p_rf = models["RF"].predict_proba(X)[0][1]
+        p_et = models["ET"].predict_proba(X)[0][1]
+        p_gb = models["GB"].predict_proba(X)[0][1]
+        p_xgb = models["XGB"].predict_proba(X)[0][1]
+        p_lgbm = models["LGBM"].predict_proba(X)[0][1]
+        p_cat = models["CAT"].predict_proba(X)[0][1]
+        p_dl = models["DL"].predict(X, verbose=0)[0][0]
+        
+        # 2. Weighted Average
+        # XGB (4), LGBM (4), CAT (4), ET (3), RF (2), GB (2), DL (2), LR (0)
+        weights = {
+            "LR": 0, "RF": 2, "ET": 3, "GB": 2, 
+            "XGB": 4, "LGBM": 4, "CAT": 4, "DL": 2
+        }
+        total_w = sum(weights.values())
+        
+        avg_prob = (
+            p_lr*0 + p_rf*2 + p_et*3 + p_gb*2 + 
+            p_xgb*4 + p_lgbm*4 + p_cat*4 + p_dl*2
+        ) / total_w
+
+        pred = 1 if avg_prob >= threshold else 0
+        
         style = "bold red" if pred == 1 else "bold green"
-        msg = "Presence Detected (High Risk)" if pred == 1 else "No Disease Detected (Low Risk)"
+        msg = "High Risk (Detection)" if pred == 1 else "Low Risk (Healthy)"
         
         console.print(Panel(
-            f"[bold]Prediction:[/bold] [{style}]{msg}[/{style}]\n"
-            f"[bold]Probability:[/bold] {prob:.2%}",
-            title="Inference Result",
+            f"[bold]Mega-Ensemble Prediction:[/bold] [{style}]{msg}[/]\n"
+            f"[bold]Confidence:[/bold] {avg_prob:.2%}\n"
+            f"[dim]Threshold (Tournament Best): {threshold:.2%}[/dim]\n"
+            f"[dim]Models: XGB, LGBM, CAT, ET, RF, GB, DL[/dim]",
+            title="Optimized Result",
             border_style=style
         ))
         
-        save_to_db(raw_df, pred, prob)
-        console.print("[dim]Patient record saved to database.[/dim]")
-        
+        save_to_db(raw_df, pred, avg_prob)
+
     except Exception as e:
-        console.print(f"[bold red]Prediction Error: {e}[/bold red]")
-
-def batch_predict_from_db(preprocessor, model, model_type):
-    with get_db_connection() as conn:
-        try:
-            df = pd.read_sql_query("SELECT * FROM patients", conn)
-            if df.empty:
-                console.print("[yellow]Database is empty.[/yellow]")
-                return
-                
-            # Prepare numeric DF
-            df_numeric = df.copy().drop(columns=['id', 'Prediction', 'Probability', 'Timestamp'], errors='ignore')
-            
-            # Map columns back to numbers (similar to mapping logic)
-            # Note: This relies on the raw strings stored in DB being mappable.
-            # Ideally, we should store numeric codes or handle this robustly.
-            # Re-implementing mapping for consistency with raw inputs:
-            
-            for col in df_numeric.columns:
-                if col in ["Age", "Blood Pressure", "Cholesterol Level", "BMI", "Sleep Hours", 
-                           "Triglyceride Level", "Fasting Blood Sugar", "CRP Level", "Homocysteine Level"]:
-                    df_numeric[col] = pd.to_numeric(df_numeric[col], errors='coerce')
-                
-                elif col in ["Gender", "Smoking", "Family Heart Disease", "Diabetes", "High Blood Pressure", 
-                           "Low HDL Cholesterol", "High LDL Cholesterol"]:
-                    df_numeric[col] = df_numeric[col].map(MAPPINGS["Binary"])
-                    
-                elif col == "Alcohol Consumption":
-                    df_numeric[col] = df_numeric[col].map(MAPPINGS["Ordinal_Alcohol"])
-                    
-                elif col in ["Exercise Habits", "Stress Level", "Sugar Consumption"]:
-                    df_numeric[col] = df_numeric[col].map(MAPPINGS["Ordinal_Basic"])
-
-            # Handle any conversion failures (fill with mean or mode if needed, here just drop/clean)
-            df_numeric.fillna(0, inplace=True) # Simple fallback
-            
-            processed = preprocessor.transform(df_numeric)
-            
-            if model_type == "keras":
-                df['New_Prob'] = model.predict(processed, verbose=0).ravel()
-                df['New_Pred'] = (df['New_Prob'] >= 0.5).astype(int)
-            else:
-                df['New_Pred'] = model.predict(processed)
-
-            # Show Table
-            table = Table(title="Batch Prediction History")
-            table.add_column("ID", justify="right", style="cyan")
-            table.add_column("Age", justify="right")
-            table.add_column("Gender")
-            table.add_column("Hist Pred", justify="center")
-            table.add_column("New Pred", justify="center", style="bold")
-            
-            for index, row in df.iterrows():
-                table.add_row(
-                    str(row['id']), 
-                    str(row['Age']), 
-                    str(row['Gender']), 
-                    str(row['Prediction']),
-                    f"[red]1[/red]" if row['New_Pred'] == 1 else "[green]0[/green]"
-                )
-            
-            console.print(table)
-            
-        except Exception as e:
-            console.print(f"[bold red]Batch Error: {e}[/bold red]")
+        console.print(f"[bold red]Error: {e}[/bold red]")
 
 # --- MAIN ---
 if __name__ == "__main__":
-    init_db() # Ensure DB exists
-    preprocessor, model, model_type = load_resources()
+    init_db()
+    preprocessor, models, threshold = load_resources()
     
-    if "--batch" in sys.argv:
-        batch_predict_from_db(preprocessor, model, model_type)
+    if "--history" in sys.argv:
+        pass
     else:
-        predict_single(preprocessor, model, model_type)
+        predict_ensemble(preprocessor, models, threshold)

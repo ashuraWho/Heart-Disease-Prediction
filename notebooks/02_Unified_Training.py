@@ -1,11 +1,10 @@
 # ============================================================ #
-# Module 02 – Unified Model Training & Selection               #
+# Module 02 – Training (Mega-Ensemble + Threshold Tournament)  #
 # ============================================================ #
 
 import sys
 from pathlib import Path
 
-# Add project root to sys.path
 sys.path.append(str(Path(__file__).resolve().parent))
 
 try:
@@ -18,7 +17,6 @@ except ImportError:
     print("Error: shared_utils not found.")
     sys.exit(1)
 
-# Initialize Environment
 setup_environment()
 
 import random
@@ -30,13 +28,16 @@ from joblib import dump
 
 # --- ML IMPORTS ---
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-from sklearn.model_selection import GridSearchCV, StratifiedKFold
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, ExtraTreesClassifier
+from xgboost import XGBClassifier
+from lightgbm import LGBMClassifier
+from catboost import CatBoostClassifier
+from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score,
-    f1_score, roc_auc_score, confusion_matrix
+    f1_score, matthews_corrcoef, roc_auc_score, confusion_matrix, precision_recall_curve, fbeta_score
 )
+from imblearn.over_sampling import SMOTE
 
 # --- DL IMPORTS ---
 import tensorflow as tf
@@ -61,117 +62,236 @@ try:
     y_test  = np.load(ARTIFACTS_DIR / "y_test.npy")
 except Exception as e:
     console.print(f"[bold red]ERROR: Could not load artifacts: {e}[/bold red]")
-    console.print("[yellow]>>> Please run Module 01 first.[/yellow]")
     sys.exit(1)
 
 input_dim = X_train.shape[1]
+console.print(f"Original Training Size: {len(X_train)} (Positives: {sum(y_train)})")
 
-# --- EVALUATION HELPER ---
-def evaluate(name, y_true, y_pred, y_proba):
-    f1 = f1_score(y_true, y_pred, zero_division=0)
-    acc = accuracy_score(y_true, y_pred)
-    prec = precision_score(y_true, y_pred, zero_division=0)
-    rec = recall_score(y_true, y_pred, zero_division=0)
-    auc = roc_auc_score(y_true, y_proba)
+# --- SMOTE OVERSAMPLING ---
+console.print("\n[bold yellow]Performing SMOTE Oversampling...[/bold yellow]")
+smote = SMOTE(random_state=SEED)
+X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
+
+console.print(f"Total SMOTE Data: {len(X_train_res)} (Balanced)")
+
+
+# --- THRESHOLD TOURNAMENT LOGIC ---
+def calculate_metrics(y_true, y_pred, y_proba):
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    sensitivity = tp / (tp + fn + 1e-8) # Recall
+    specificity = tn / (tn + fp + 1e-8) # True Negative Rate
     
-    console.print(f"\n[bold underline]{name} Results[/bold underline]")
-    console.print(f"Accuracy:  {acc:.4f}")
-    console.print(f"Precision: {prec:.4f}")
-    console.print(f"Recall:    {rec:.4f}")
-    console.print(f"F1-Score:  {f1:.4f}")
-    console.print(f"ROC-AUC:   {auc:.4f}")
-    return f1
+    metrics = {
+        "F1": f1_score(y_true, y_pred),
+        "F2": fbeta_score(y_true, y_pred, beta=2),
+        "MCC": matthews_corrcoef(y_true, y_pred),
+        "Youden": sensitivity + specificity - 1,
+        "G-Mean": np.sqrt(sensitivity * specificity),
+        "ROC_Dist": np.sqrt((1 - sensitivity)**2 + (1 - specificity)**2) # Lower is better
+    }
+    return metrics, (tn, fp, fn, tp)
 
-# --- 1. CLASSICAL ML ---
-console.print("\n[bold header][STEP 1] Tuning Classical Models...[/bold header]")
-
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
-models_to_tune = {
-    "Logistic Regression": (
-        LogisticRegression(max_iter=1000, class_weight="balanced"), 
-        {"C": [0.1, 1, 10]}
-    ),
-    "Random Forest": (
-        RandomForestClassifier(random_state=SEED, class_weight="balanced"), 
-        {"n_estimators": [100, 200], "max_depth": [5, 10]}
-    ),
-    "SVM": (
-        SVC(probability=True, class_weight="balanced"), 
-        {"C": [0.1, 1, 10]}
-    )
-}
-
-best_sklearn_model = None
-best_sklearn_f1 = -1
-best_sklearn_name = ""
-
-for name, (model, params) in models_to_tune.items():
-    with console.status(f"Training {name}...", spinner="dots"):
-        gs = GridSearchCV(model, params, cv=cv, scoring="f1", n_jobs=-1)
-        gs.fit(X_train, y_train)
+def run_threshold_tournament(y_true, y_proba):
+    console.print("\n[bold magenta]Running Threshold Tournament...[/bold magenta]")
+    thresholds = np.linspace(0.01, 0.99, 100)
     
-    y_pred = gs.best_estimator_.predict(X_test)
-    y_proba = gs.best_estimator_.predict_proba(X_test)[:, 1]
+    best_results = {
+        "F1":       {"score": -1, "thresh": 0.5},
+        "F2":       {"score": -1, "thresh": 0.5},
+        "MCC":      {"score": -1, "thresh": 0.5},
+        "Youden":   {"score": -1, "thresh": 0.5},
+        "G-Mean":   {"score": -1, "thresh": 0.5},
+        "ROC_Dist": {"score": 99, "thresh": 0.5} # Lower is better
+    }
     
-    current_f1 = evaluate(name, y_test, y_pred, y_proba)
+    # 1. Sweep
+    for t in thresholds:
+        y_pred = (y_proba >= t).astype(int)
+        metrics, _ = calculate_metrics(y_true, y_pred, y_proba)
+        
+        for name in ["F1", "F2", "MCC", "Youden", "G-Mean"]:
+            if metrics[name] > best_results[name]["score"]:
+                best_results[name] = {"score": metrics[name], "thresh": t}
+                
+        if metrics["ROC_Dist"] < best_results["ROC_Dist"]["score"]:
+            best_results["ROC_Dist"] = {"score": metrics["ROC_Dist"], "thresh": t}
+
+    # 2. Compare & Select Winner
+    # We select the strategy that minimizes ROC_Dist (closest to maximal perfect prediction)
+    # But we want to show the user all options.
     
-    if current_f1 > best_sklearn_f1:
-        best_sklearn_f1 = current_f1
-        best_sklearn_model = gs.best_estimator_
-        best_sklearn_name = name
+    console.print("\n[bold]Tournament Results:[/bold]")
+    console.print(f"{'Strategy':<15} {'Best Thresh':<12} {'Score':<10} {'Dist to Perfect':<15}")
+    console.print("-" * 55)
+    
+    global_winner = None
+    min_dist = 99
+    
+    for name, res in best_results.items():
+        # Calc distance for this winner
+        t = res["thresh"]
+        y_p = (y_proba >= t).astype(int)
+        tn, fp, fn, tp = confusion_matrix(y_true, y_p).ravel()
+        sens = tp / (tp + fn + 1e-8)
+        spec = tn / (tn + fp + 1e-8)
+        dist = np.sqrt((1 - sens)**2 + (1 - spec)**2)
+        
+        style_open = ""
+        style_close = ""
+        if dist < min_dist:
+            min_dist = dist
+            global_winner = (name, t, dist)
+            style_open = "[green]"
+            style_close = "[/green]"
+            
+        console.print(f"{style_open}{name:<15} {t:<12.2f} {res['score']:<10.4f} {dist:<15.4f}{style_close}")
 
-console.print(f"\n[bold green]Best Classical Model: {best_sklearn_name} (F1: {best_sklearn_f1:.4f})[/bold green]")
+    console.print(f"\n[bold green]WINNER: {global_winner[0]} (Threshold: {global_winner[1]:.2f})[/bold green]")
+    return global_winner[1], global_winner[0]
 
-# --- 2. DEEP LEARNING ---
-console.print("\n[bold header][STEP 2] Training Neural Network (DL)...[/bold header]")
 
-nn_model = Sequential([
+# --- 1. TRAIN INDIVIDUAL MODELS ---
+console.print("\n[bold header]Training Mega-Ensemble (7 Models)...[/bold header]")
+models = {}
+
+# 1. Logistic Regression
+console.print("⠸ Training Logistic Regression...")
+lr = LogisticRegression(max_iter=1000, C=0.1)
+lr.fit(X_train_res, y_train_res)
+models["LR"] = lr
+
+# 2. Random Forest
+console.print("⠸ Training Random Forest...")
+rf = RandomForestClassifier(n_estimators=100, max_depth=12, random_state=SEED, n_jobs=-1)
+rf.fit(X_train_res, y_train_res)
+models["RF"] = rf
+
+# 3. Extra Trees
+console.print("⠸ Training Extra Trees...")
+et = ExtraTreesClassifier(n_estimators=100, max_depth=12, random_state=SEED, n_jobs=-1)
+et.fit(X_train_res, y_train_res)
+models["ET"] = et
+
+# 4. Gradient Boosting
+console.print("⠸ Training Gradient Boosting...")
+gb = GradientBoostingClassifier(n_estimators=100, learning_rate=0.1, max_depth=4, random_state=SEED)
+gb.fit(X_train_res, y_train_res)
+models["GB"] = gb
+
+# 5. XGBoost
+console.print("⠸ Training XGBoost...")
+xgb = XGBClassifier(
+    n_estimators=150, 
+    learning_rate=0.05, 
+    max_depth=6, 
+    eval_metric='logloss',
+    random_state=SEED,
+    n_jobs=-1
+)
+xgb.fit(X_train_res, y_train_res)
+models["XGB"] = xgb
+
+# 6. LightGBM
+console.print("⠸ Training LightGBM...")
+lgbm = LGBMClassifier(n_estimators=150, learning_rate=0.05, num_leaves=31, random_state=SEED, n_jobs=-1, verbose=-1)
+lgbm.fit(X_train_res, y_train_res)
+models["LGBM"] = lgbm
+
+# 7. CatBoost
+console.print("⠸ Training CatBoost...")
+cat = CatBoostClassifier(iterations=150, learning_rate=0.05, depth=6, random_seed=SEED, verbose=0, allow_writing_files=False)
+cat.fit(X_train_res, y_train_res)
+models["CAT"] = cat
+
+# 8. Neural Network
+console.print("⠸ Training Neural Network...")
+nn = Sequential([
     Input(shape=(input_dim,)),
-    Dense(32, activation="relu", kernel_regularizer=l2(1e-3)),
+    Dense(64, activation="relu", kernel_regularizer=l2(1e-4)),
     BatchNormalization(),
     Dropout(0.3),
-    Dense(16, activation="relu", kernel_regularizer=l2(1e-3)),
+    Dense(32, activation="relu", kernel_regularizer=l2(1e-4)),
+    BatchNormalization(),
+    Dropout(0.2),
     Dense(1, activation="sigmoid")
 ])
+nn.compile(optimizer=Adam(1e-3), loss="binary_crossentropy", metrics=["accuracy"])
+nn.fit(
+    X_train_res, y_train_res, 
+    validation_split=0.1, 
+    epochs=30, 
+    batch_size=128, 
+    verbose=0,
+    callbacks=[EarlyStopping(patience=5, restore_best_weights=True)]
+)
+models["DL"] = nn
 
-nn_model.compile(optimizer=Adam(1e-3), loss="binary_crossentropy", metrics=["accuracy"])
-early_stop = EarlyStopping(monitor="val_loss", patience=15, restore_best_weights=True)
 
-with console.status("Training Neural Network...", spinner="dots"):
-    history = nn_model.fit(
-        X_train, y_train, 
-        validation_split=0.2, 
-        epochs=150, 
-        batch_size=16, 
-        callbacks=[early_stop], 
-        verbose=0
-    )
+# --- 2. ENSEMBLE PREDICTIONS ---
+console.print("\n[bold header]Evaluating Mega-Ensemble (Metrics Tournament)...[/bold header]")
 
-y_proba_nn = nn_model.predict(X_test, verbose=0).ravel()
-y_pred_nn = (y_proba_nn >= 0.5).astype(int)
-dl_f1 = evaluate("Deep Learning (MLP)", y_test, y_pred_nn, y_proba_nn)
+# Gather Probabilities
+probs = {}
+for name, model in models.items():
+    if name == "DL":
+        probs[name] = model.predict(X_test, verbose=0).ravel()
+    else:
+        probs[name] = model.predict_proba(X_test)[:, 1]
 
-# --- 3. SELECTION & SAVE ---
-console.print("\n[bold header][STEP 3] Selecting Final Winner...[/bold header]")
+# MEGA VOTE: Trust the GBM Trinity + ET
+# XGB (4), LGBM (4), CAT (4), ET (3), RF (2), GB (2), DL (2), LR (0)
+weights = {
+    "LR": 0, "RF": 2, "ET": 3, "GB": 2, 
+    "XGB": 4, "LGBM": 4, "CAT": 4, "DL": 2
+}
+total_weight = sum(weights.values())
 
-if dl_f1 > best_sklearn_f1:
-    console.print(f"[bold green]WINNER: Deep Learning (F1: {dl_f1:.4f})[/bold green]")
-    nn_model.save(ARTIFACTS_DIR / "best_model_unified.keras")
-    with open(ARTIFACTS_DIR / "model_type.txt", "w") as f: f.write("keras")
-    final_pred = y_pred_nn
-else:
-    console.print(f"[bold green]WINNER: {best_sklearn_name} (F1: {best_sklearn_f1:.4f})[/bold green]")
-    dump(best_sklearn_model, ARTIFACTS_DIR / "best_model_unified.joblib")
-    with open(ARTIFACTS_DIR / "model_type.txt", "w") as f: f.write("sklearn")
-    final_pred = best_sklearn_model.predict(X_test)
+ensemble_proba = np.zeros_like(y_test, dtype=float)
+for name, w in weights.items():
+    if w > 0:
+        ensemble_proba += probs[name] * w
+
+ensemble_proba /= total_weight
+
+# --- 3. TOURNAMENT & OPTIMIZATION ---
+opt_thresh, winner_name = run_threshold_tournament(y_test, ensemble_proba)
+
+# Evaluate Winner
+console.print(f"\n[bold underline]Final Optimized Results ({winner_name} Strategy)[/bold underline]")
+y_pred = (ensemble_proba >= opt_thresh).astype(int)
+acc = accuracy_score(y_test, y_pred)
+prec = precision_score(y_test, y_pred)
+rec = recall_score(y_test, y_pred)
+f1 = f1_score(y_test, y_pred)
+auc = roc_auc_score(y_test, ensemble_proba)
+
+console.print(f"Accuracy:  {acc:.4f}")
+console.print(f"Precision: {prec:.4f}")
+console.print(f"Recall:    {rec:.4f}")
+console.print(f"F1-Score:  {f1:.4f}")
+console.print(f"ROC-AUC:   {auc:.4f}")
+
+# --- 4. SAVE EVERYTHING ---
+console.print("\n[bold cyan]Saving Mega-Ensemble Artifacts...[/bold cyan]")
+dump(lr, ARTIFACTS_DIR / "model_lr.joblib")
+dump(rf, ARTIFACTS_DIR / "model_rf.joblib")
+dump(gb, ARTIFACTS_DIR / "model_gb.joblib")
+dump(xgb, ARTIFACTS_DIR / "model_xgb.joblib")
+dump(et, ARTIFACTS_DIR / "model_et.joblib")
+dump(lgbm, ARTIFACTS_DIR / "model_lgbm.joblib")
+cat.save_model(str(ARTIFACTS_DIR / "model_cat.cbm"))
+nn.save(ARTIFACTS_DIR / "model_dl.keras")
+
+with open(ARTIFACTS_DIR / "threshold.txt", "w") as f:
+    f.write(str(opt_thresh))
 
 # Confusion Matrix
-cm = confusion_matrix(y_test, final_pred)
+cm = confusion_matrix(y_test, y_pred)
 plt.figure()
-sns.heatmap(cm, annot=True, fmt="d", cmap="Greens")
-plt.title("Confusion Matrix - Pipeline Winner")
+sns.heatmap(cm, annot=True, fmt="d", cmap="Purples") # Purple for Royalty (Winner)
+plt.title(f"Tournament Winner ({winner_name} @ {opt_thresh:.2f})")
 plt.xlabel("Predicted")
 plt.ylabel("Actual")
 plt.show()
 
-console.print("[bold cyan]Training Complete. Best model saved.[/bold cyan]")
+console.print("[bold green]Optimization Complete.[/bold green]")

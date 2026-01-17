@@ -28,71 +28,69 @@ def setup_environment():
     os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
     os.environ['OMP_NUM_THREADS'] = '1'
     os.environ['MKL_NUM_THREADS'] = '1'
-    # os.environ['CUDA_VISIBLE_DEVICES'] = '-1' # Optional: force CPU if needed widely
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    os.environ['TF_METAL_DEVICE_NS'] = '0' # Disable Metal usage for TF plugin stability
 
 # --- 3. PATH DEFINITIONS ---
-# Assuming this file is in <ROOT>/notebooks/
-# PROJECT_ROOT is the parent of the directory containing this file
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
 NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks"
 DB_PATH = PROJECT_ROOT / "patients_data.db"
-DATASET_PATH = DATA_DIR / "heart_disease.csv"
+DATASET_PATH = DATA_DIR / "heart_2022_no_nans.csv"
 
 # Ensure artifacts directory exists
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# --- 4. DATA MAPPINGS ---
+# --- 4. DATA MAPPINGS (NEW 2022 SCHEMA) ---
 CLINICAL_GUIDE = {
-    "Age": "Patient's age in years.",
-    "Gender": "Biological gender (Male/Female).",
-    "Blood Pressure": "Systolic blood pressure (mm Hg).",
-    "Cholesterol Level": "Total serum cholesterol level (mg/dl).",
-    "Exercise Habits": "Regular physical activity level (Low, Medium, High).",
-    "Smoking": "Current smoking status (Yes/No).",
-    "Family Heart Disease": "History of heart disease in family (Yes/No).",
-    "Diabetes": "Whether the patient has a diabetes diagnosis (Yes/No).",
-    "BMI": "Body Mass Index (weight / height^2).",
-    "High Blood Pressure": "Pre-existing hypertension (Yes/No).",
-    "Low HDL Cholesterol": "Presence of low 'good' cholesterol (Yes/No).",
-    "High LDL Cholesterol": "Presence of high 'bad' cholesterol (Yes/No).",
-    "Alcohol Consumption": "Alcohol intake level (None, Low, Medium, High).",
-    "Stress Level": "Reported psychological stress (Low, Medium, High).",
-    "Sleep Hours": "Average hours of sleep per night.",
-    "Sugar Consumption": "Dietary sugar intake (Low, Medium, High).",
-    "Triglyceride Level": "Serum triglyceride level (mg/dl).",
-    "Fasting Blood Sugar": "Blood sugar level after fasting.",
-    "CRP Level": "C-reactive protein level (inflammation marker).",
-    "Homocysteine Level": "Homocysteine level (vascular health marker)."
-}
-
-MAPPINGS = {
-    "Binary": {"Yes": 1, "No": 0, "Male": 1, "Female": 0},
-    "Ordinal_Basic": {"Low": 0, "Medium": 1, "High": 2, "None": 0}, 
-    "Ordinal_Alcohol": {"None": 0, "Low": 1, "Medium": 2, "High": 3}
+    "Sex": "Biological Sex (Male/Female).",
+    "GeneralHealth": "Self-reported health (Excellent to Poor).",
+    "PhysicalHealthDays": "Days of poor physical health in past 30 days.",
+    "MentalHealthDays": "Days of poor mental health in past 30 days.",
+    "LastCheckupTime": "Time since last checkup.",
+    "PhysicalActivities": "Exercise in past 30 days (Yes/No).",
+    "SleepHours": "Average hours of sleep.",
+    "HadAsthma": "History of Asthma (Yes/No).",
+    "HadSkinCancer": "History of Skin Cancer (Yes/No).",
+    "HadCOPD": "History of COPD (Yes/No).",
+    "HadDepressiveDisorder": "History of Depressive Disorder (Yes/No).",
+    "HadKidneyDisease": "History of Kidney Disease (Yes/No).",
+    "HadArthritis": "History of Arthritis (Yes/No).",
+    "HadDiabetes": "History of Diabetes (Yes/No/Borderline).",
+    "SmokerStatus": "Smoking history.",
+    "ECigaretteUsage": "E-Cigarette usage.",
+    "ChestScan": "Had CT/CAT scan of chest (Yes/No).",
+    "AgeCategory": "Age Range.",
+    "BMI": "Body Mass Index.",
+    "AlcoholDrinkers": "Alcohol consumption (Yes/No).",
+    "HIVTesting": "Ever tested for HIV (Yes/No).",
+    "CovidPos": "Tested positive for COVID-19 (Yes/No)."
 }
 
 # --- 5. DATABASE UTILITIES ---
 def get_db_connection():
-    """Returns a connection to the SQLite database."""
     return sqlite3.connect(DB_PATH)
 
 def init_db():
-    """Initializes the database schema if it doesn't exist."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        # Updated Schema for 2022 Dataset
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS patients ( 
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                Age REAL, Gender TEXT, [Blood Pressure] REAL, [Cholesterol Level] REAL, 
-                [Exercise Habits] TEXT, Smoking TEXT, [Family Heart Disease] TEXT, 
-                Diabetes TEXT, BMI REAL, [High Blood Pressure] TEXT, 
-                [Low HDL Cholesterol] TEXT, [High LDL Cholesterol] TEXT, 
-                [Alcohol Consumption] TEXT, [Stress Level] TEXT, [Sleep Hours] REAL, 
-                [Sugar Consumption] TEXT, [Triglyceride Level] REAL, 
-                [Fasting Blood Sugar] REAL, [CRP Level] REAL, [Homocysteine Level] REAL,
+                State TEXT, Sex TEXT, GeneralHealth TEXT, PhysicalHealthDays REAL, 
+                MentalHealthDays REAL, LastCheckupTime TEXT, PhysicalActivities TEXT, 
+                SleepHours REAL, RemovedTeeth TEXT, HadHeartAttack TEXT, HadAngina TEXT, 
+                HadStroke TEXT, HadAsthma TEXT, HadSkinCancer TEXT, HadCOPD TEXT, 
+                HadDepressiveDisorder TEXT, HadKidneyDisease TEXT, HadArthritis TEXT, 
+                HadDiabetes TEXT, DeafOrHardOfHearing TEXT, BlindOrVisionDifficulty TEXT, 
+                DifficultyConcentrating TEXT, DifficultyWalking TEXT, 
+                DifficultyDressingBathing TEXT, DifficultyErrands TEXT, SmokerStatus TEXT, 
+                ECigaretteUsage TEXT, ChestScan TEXT, RaceEthnicityCategory TEXT, 
+                AgeCategory TEXT, HeightInMeters REAL, WeightInKilograms REAL, 
+                BMI REAL, AlcoholDrinkers TEXT, HIVTesting TEXT, FluVaxLast12 TEXT, 
+                PneumoVaxEver TEXT, TetanusLast10Tdap TEXT, HighRiskLastYear TEXT, CovidPos TEXT,
                 Prediction INTEGER, Probability REAL, Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP 
             )
         ''')

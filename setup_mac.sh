@@ -29,7 +29,7 @@ echo "    python -m pip install tensorflow-macos tensorflow-metal"
 # 4. Critical Warning
 echo "[4/4] CRITICAL EXECUTION WARNING:"
 echo "    NEVER run the code with: /opt/anaconda3/bin/python ..."
-echo "    ALWAYS run it with: python notebooks/04_Deep_Learning.py"
+echo "    ALWAYS run it with: python main.py"
 echo "    (After activating the environment)"
 
 echo "--------------------------------------------------------"
