@@ -20,22 +20,29 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1] # Identify the project root d
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the artifacts directory path
 DB_PATH = PROJECT_ROOT / "patients_data.db" # Define the path for the SQL database
 
-# Clinical Glossary for user guidance during input                      # Glossary Section
+# Updated Clinical Glossary based on the NEW 21-column dataset structure # Glossary Section
 CLINICAL_GUIDE = { # Define dictionary with clinical parameter explanations
-    "Age": "Patient's age in years.", # Explanation for Age
-    "Sex": "1 = Male; 0 = Female.", # Explanation for Sex
-    "ChestPain": "1: Typical Angina, 2: Atypical Angina, 3: Non-Anginal Pain, 4: Asymptomatic.", # Explanation for Chest Pain
-    "BP": "Resting blood pressure (mm Hg on admission to the hospital).", # Explanation for Blood Pressure
-    "Cholesterol": "Serum cholesterol in mg/dl.", # Explanation for Cholesterol
-    "FBS": "Fasting blood sugar > 120 mg/dl (1 = true; 0 = false).", # Explanation for Fasting Blood Sugar
-    "EKG": "Resting ECG results (0: Normal, 1: ST-T wave abnormality, 2: Left ventricular hypertrophy).", # Explanation for ECG
-    "MaxHR": "Maximum heart rate achieved during stress test.", # Explanation for Max Heart Rate
-    "ExerciseAngina": "Exercise induced angina (1 = yes; 0 = no).", # Explanation for Exercise Angina
-    "ST_Depression": "ST depression induced by exercise relative to rest (marker of ischemia).", # Explanation for ST Depression
-    "ST_Slope": "1: Upsloping, 2: Flat, 3: Downsloping (Slope of the peak exercise ST segment).", # Explanation for ST Slope
-    "NumVessels": "Number of major vessels (0-3) colored by flourosopy.", # Explanation for Number of Vessels
-    "Thallium": "3 = Normal; 6 = Fixed defect; 7 = Reversable defect (Nuclear stress test result)." # Explanation for Thallium Test
-} # End of glossary
+    "Age": "The individual's age in years.", # Explanation for Age
+    "Gender": "The individual's gender (Male or Female).", # Explanation for Gender
+    "Blood Pressure": "The individual's systolic blood pressure.", # Explanation for BP
+    "Cholesterol Level": "The individual's total cholesterol level.", # Explanation for Cholesterol
+    "Exercise Habits": "The individual's exercise habits (Low, Medium, High).", # Explanation for Exercise
+    "Smoking": "Whether the individual smokes or not (Yes or No).", # Explanation for Smoking
+    "Family Heart Disease": "Whether there is a family history of heart disease (Yes or No).", # Explanation for Family History
+    "Diabetes": "Whether the individual has diabetes (Yes or No).", # Explanation for Diabetes
+    "BMI": "The individual's body mass index.", # Explanation for BMI
+    "High Blood Pressure": "Whether the individual has high blood pressure (Yes or No).", # Explanation for High BP
+    "Low HDL Cholesterol": "Whether the individual has low HDL cholesterol (Yes or No).", # Explanation for Low HDL
+    "High LDL Cholesterol": "Whether the individual has high LDL cholesterol (Yes or No).", # Explanation for High LDL
+    "Alcohol Consumption": "The individual's alcohol consumption level (None, Low, Medium, High).", # Explanation for Alcohol
+    "Stress Level": "The individual's stress level (Low, Medium, High).", # Explanation for Stress
+    "Sleep Hours": "The number of hours the individual sleeps.", # Explanation for Sleep
+    "Sugar Consumption": "The individual's sugar consumption level (Low, Medium, High).", # Explanation for Sugar
+    "Triglyceride Level": "The individual's triglyceride level.", # Explanation for Triglycerides
+    "Fasting Blood Sugar": "The individual's fasting blood sugar level.", # Explanation for FBS
+    "CRP Level": "The C-reactive protein level (marker of inflammation).", # Explanation for CRP
+    "Homocysteine Level": "The individual's homocysteine level (affects vessel health)." # Explanation for Homocysteine
+} # End of updated glossary
 
 def init_db(): # Define function to initialize the SQL database
     conn = sqlite3.connect(DB_PATH) # Connect to the SQLite database
@@ -43,12 +50,16 @@ def init_db(): # Define function to initialize the SQL database
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS patients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Age REAL, Sex REAL, ChestPain REAL, BP REAL, Cholesterol REAL,
-            FBS REAL, EKG REAL, MaxHR REAL, ExerciseAngina REAL,
-            ST_Depression REAL, ST_Slope REAL, NumVessels REAL, Thallium REAL,
+            Age REAL, Gender TEXT, [Blood Pressure] REAL, [Cholesterol Level] REAL,
+            [Exercise Habits] TEXT, Smoking TEXT, [Family Heart Disease] TEXT,
+            Diabetes TEXT, BMI REAL, [High Blood Pressure] TEXT,
+            [Low HDL Cholesterol] TEXT, [High LDL Cholesterol] TEXT,
+            [Alcohol Consumption] TEXT, [Stress Level] TEXT, [Sleep Hours] REAL,
+            [Sugar Consumption] TEXT, [Triglyceride Level] REAL,
+            [Fasting Blood Sugar] REAL, [CRP Level] REAL, [Homocysteine Level] REAL,
             Prediction INTEGER, Probability REAL, Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
-    ''') # Execute SQL command to create the patients table with metadata
+    ''') # Execute SQL command to create the patients table with metadata for the new dataset
     conn.commit() # Commit the changes
     conn.close() # Close the connection
 
@@ -66,27 +77,39 @@ def get_interactive_input(): # Define function for manual patient data entry
     for key, explanation in CLINICAL_GUIDE.items(): # Iterate through the glossary
         print(f"\n[INFO] {key}: {explanation}") # Print the explanation for the current parameter
         while True: # Start validation loop
-            try: # Start error handling block
-                val = float(input(f"Enter value for {key}: ")) # Ask for input and convert to float
-                patient_dict[key] = [val] # Store the value in the dictionary
-                break # Exit the validation loop if successful
-            except ValueError: # Catch non-numeric inputs
-                print("Invalid input. Please enter a numeric value.") # Print error message
+            val = input(f"Enter value for {key}: ") # Ask for input
+            if val.strip() == "": # Check for empty input
+                print("Input cannot be empty.") # Print error
+                continue # Retry
+            # We store everything as string/float as appropriate, pandas will handle it
+            patient_dict[key] = [val] # Store the value
+            break # Exit loop
     return pd.DataFrame(patient_dict) # Return the data as a pandas DataFrame
 
 def predict_single(preprocessor, model): # Define function for single patient prediction flow
     new_patient_df = get_interactive_input() # Get interactive input from the user
-    new_patient_processed = preprocessor.transform(new_patient_df) # Process the raw input data
-    prediction = model.predict(new_patient_processed)[0] # Get the class prediction
-    probability = model.predict_proba(new_patient_processed)[0] # Get the class probabilities
 
-    print("\n--- PREDICTION RESULTS ---") # Print results header
-    result_text = "Presence of Heart Disease detected." if prediction == 1 else "No heart disease detected (Absence)." # Define result text
-    print(f"RESULT: {result_text}") # Output result
-    print(f"Confidence (Presence Probability): {probability[1]:.2%}") # Output confidence
+    try: # Start safety block for preprocessing
+        new_patient_processed = preprocessor.transform(new_patient_df) # Process the raw input data
+        prediction = model.predict(new_patient_processed)[0] # Get the class prediction
 
-    save_to_db(new_patient_df, prediction, probability[1]) # Save the patient record and results to SQL
-    print("\n[DB] Patient record and prediction saved to SQL database.") # Print confirmation
+        if hasattr(model, "predict_proba"): # Check if model can predict probabilities
+            probability = model.predict_proba(new_patient_processed)[0] # Get probabilities
+            conf = probability[1] # Confidence of presence
+        else: # Fallback for models without predict_proba
+            conf = 0.0 # Default confidence
+
+        print("\n--- PREDICTION RESULTS ---") # Print results header
+        result_text = "Presence of Heart Disease detected." if prediction == 1 else "No heart disease detected (Absence)." # Define result text
+        print(f"RESULT: {result_text}") # Output result
+        if hasattr(model, "predict_proba"): # Output confidence if available
+            print(f"Confidence (Presence Probability): {conf:.2%}") # Output confidence
+
+        save_to_db(new_patient_df, prediction, conf) # Save the patient record and results to SQL
+        print("\n[DB] Patient record and prediction saved to SQL database.") # Print confirmation
+    except Exception as e: # Catch errors during inference
+        print(f"\n[ERROR] Prediction failed: {e}") # Print error message
+        print(">>> Ensure the data entered matches the categories used during training.") # Print tip
 
 def batch_predict_from_db(preprocessor, model): # Define function to re-predict all stored records
     conn = sqlite3.connect(DB_PATH) # Connect to the SQLite database
@@ -101,10 +124,14 @@ def batch_predict_from_db(preprocessor, model): # Define function to re-predict 
         X_processed = preprocessor.transform(X_raw) # Preprocess the data
 
         df['New_Prediction'] = model.predict(X_processed) # Generate new predictions
-        df['New_Probability'] = model.predict_proba(X_processed)[:, 1] # Generate new probabilities
+        if hasattr(model, "predict_proba"): # Generate new probabilities if available
+            df['New_Probability'] = model.predict_proba(X_processed)[:, 1] # Generate new probabilities
 
         print("\n--- BATCH PREDICTION RESULTS (FROM DATABASE) ---") # Print batch header
-        print(df[['id', 'Age', 'Sex', 'Prediction', 'New_Prediction', 'New_Probability']]) # Display summary
+        cols_to_show = ['id', 'Age', 'Gender', 'Prediction', 'New_Prediction'] # Basic columns
+        if 'New_Probability' in df.columns: # Add probability if present
+             cols_to_show.append('New_Probability') # Append column
+        print(df[cols_to_show]) # Display summary
     except Exception as e: # Catch any errors during database operation
         print(f"\n[ERROR] Could not perform batch prediction: {e}") # Print error message
     finally: # Ensure connection is closed

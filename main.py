@@ -19,6 +19,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce TensorFlow logging noise
 PROJECT_ROOT = Path(__file__).resolve().parent # Identify the project root directory
 NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks" # Define the directory containing modules
 ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the directory for ML artifacts
+DB_PATH = PROJECT_ROOT / "patients_data.db" # Define the path for the SQL database
 # ------------------------------
 
 def clear_screen(): # Define a function to clear the terminal screen
@@ -46,21 +47,28 @@ def show_clinical_guide(): # Define a function to display clinical parameter exp
     print_header("CLINICAL DATA GLOSSARY & GUIDE") # Print glossary header
     guide = { # Define dictionary with clinical parameter explanations
         "Age": "Patient's age in years.", # Explanation for Age
-        "Sex": "1 = Male; 0 = Female.", # Explanation for Sex
-        "ChestPain": "1: Typical Angina, 2: Atypical Angina, 3: Non-Anginal Pain, 4: Asymptomatic.", # Explanation for Chest Pain
-        "BP": "Resting blood pressure (mm Hg on admission to the hospital).", # Explanation for Blood Pressure
-        "Cholesterol": "Serum cholesterol in mg/dl.", # Explanation for Cholesterol
-        "FBS": "Fasting blood sugar > 120 mg/dl (1 = true; 0 = false).", # Explanation for Fasting Blood Sugar
-        "EKG": "Resting ECG results (0: Normal, 1: ST-T wave abnormality, 2: Left ventricular hypertrophy).", # Explanation for ECG
-        "MaxHR": "Maximum heart rate achieved during stress test.", # Explanation for Max Heart Rate
-        "ExerciseAngina": "Exercise induced angina (1 = yes; 0 = no).", # Explanation for Exercise Angina
-        "ST_Depression": "ST depression induced by exercise relative to rest (marker of ischemia).", # Explanation for ST Depression
-        "ST_Slope": "1: Upsloping, 2: Flat, 3: Downsloping (Slope of the peak exercise ST segment).", # Explanation for ST Slope
-        "NumVessels": "Number of major vessels (0-3) colored by flourosopy.", # Explanation for Number of Vessels
-        "Thallium": "3 = Normal; 6 = Fixed defect; 7 = Reversable defect (Nuclear stress test result)." # Explanation for Thallium Test
+        "Gender": "Patient's biological gender (Male/Female).", # Explanation for Gender
+        "Blood Pressure": "Systolic blood pressure (mm Hg).", # Explanation for Blood Pressure
+        "Cholesterol Level": "Total serum cholesterol level (mg/dl).", # Explanation for Cholesterol
+        "Exercise Habits": "Level of regular physical activity (Low, Medium, High).", # Explanation for Exercise
+        "Smoking": "Current smoking status (Yes/No).", # Explanation for Smoking
+        "Family Heart Disease": "History of heart disease in immediate family (Yes/No).", # Explanation for Family History
+        "Diabetes": "Whether the patient has a diabetes diagnosis (Yes/No).", # Explanation for Diabetes
+        "BMI": "Body Mass Index (weight / height^2).", # Explanation for BMI
+        "High Blood Pressure": "Pre-existing diagnosis of hypertension (Yes/No).", # Explanation for High BP
+        "Low HDL Cholesterol": "Presence of low 'good' cholesterol (Yes/No).", # Explanation for Low HDL
+        "High LDL Cholesterol": "Presence of high 'bad' cholesterol (Yes/No).", # Explanation for High LDL
+        "Alcohol Consumption": "Level of alcohol intake (None, Low, Medium, High).", # Explanation for Alcohol
+        "Stress Level": "Reported psychological stress level (Low, Medium, High).", # Explanation for Stress
+        "Sleep Hours": "Average hours of sleep per night.", # Explanation for Sleep
+        "Sugar Consumption": "Dietary sugar intake level (Low, Medium, High).", # Explanation for Sugar
+        "Triglyceride Level": "Serum triglyceride level (mg/dl).", # Explanation for Triglycerides
+        "Fasting Blood Sugar": "Blood sugar level after fasting.", # Explanation for Fasting Sugar
+        "CRP Level": "C-reactive protein level (marker of inflammation).", # Explanation for CRP
+        "Homocysteine Level": "Homocysteine level (marker for vascular health)." # Explanation for Homocysteine
     } # End of guide dictionary
     for key, value in guide.items(): # Iterate through the guide dictionary
-        print(f"► {key.ljust(15)}: {value}") # Print formatted explanation
+        print(f"► {key.ljust(20)}: {value}") # Print formatted explanation
     input("\nPress Enter to return to main menu...") # Wait for user input to continue
 
 def reset_artifacts(): # Define a function to clear all generated artifacts
@@ -71,6 +79,13 @@ def reset_artifacts(): # Define a function to clear all generated artifacts
         print("\n[RESET] All artifacts have been deleted. You MUST run the pipeline from Module 01.") # Print status
     else: # If directory doesn't exist
         print("\n[INFO] No artifacts found to delete.") # Print info
+
+def delete_database(): # Define function to delete the SQL database
+    if DB_PATH.exists(): # Check if database file exists
+        os.remove(DB_PATH) # Delete the file
+        print(f"\n[DELETE] Database '{DB_PATH.name}' has been successfully deleted.") # Print status
+    else: # If file doesn't exist
+        print("\n[INFO] No database found to delete.") # Print info
 
 def main_menu(): # Define the main menu loop
     while True: # Start infinite loop for the menu
@@ -83,13 +98,14 @@ def main_menu(): # Define the main menu loop
         print("5. [Prediction] Predict for a New Patient (Manual Input & Save)") # Option 5
         print("6. [Prediction] Batch Predict all Patients in Database") # Option 6
         print("7. [Knowledge] Clinical Data Glossary") # Option 7
+        print("d. [Maintenance] Delete SQL Database") # Delete DB option
         print("r. [Maintenance] Reset System Artifacts") # Reset option
         print("q. Exit System") # Exit option
         print("-" * 60) # Print separator
         print("NOTE: If you see 'AttributeError' or 'Compatibility Issue', run 1 and 2.") # Helpful tip
         print("-" * 60) # Print separator
 
-        choice = input("Select an option (1-7, r or q): ").lower() # Get user choice and convert to lowercase
+        choice = input("Select an option (1-7, d, r or q): ").lower() # Get user choice and convert to lowercase
 
         match choice: # Use match-case for structural navigation
             case '1': # Case for EDA
@@ -112,6 +128,9 @@ def main_menu(): # Define the main menu loop
                 input("\nPress Enter to continue...") # Pause
             case '7': # Case for Glossary
                 show_clinical_guide() # Show the glossary
+            case 'd': # Case for Delete DB
+                delete_database() # Call delete DB function
+                input("\nPress Enter to continue...") # Pause
             case 'r': # Case for Reset
                 reset_artifacts() # Call reset function
                 input("\nPress Enter to continue...") # Pause

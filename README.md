@@ -1,81 +1,57 @@
-# Heart Disease Prediction: A Robust and Explainable ML Pipeline
+# Heart Disease Prediction: A Robust and Explainable ML Pipeline (V2)
 
 ## 🌟 Project Vision & Mission
 
 **What we are doing:**
-This project is an end-to-end Machine Learning ecosystem designed to predict the presence of heart disease from clinical data. We have built a robust, portable, and highly documented pipeline that transforms raw clinical observations into actionable insights and predictive models.
+This project is an end-to-end Machine Learning ecosystem designed to predict the presence of heart disease using an expanded clinical dataset of 21 parameters. We have built a robust, persistent, and highly documented pipeline that transforms complex medical observations into Actionable Clinical Intelligence.
 
 **Where we are going:**
-The goal is to bridge the gap between "Black Box" algorithms and clinical interpretability. By combining classical statistical models with modern Deep Learning and cutting-edge Explainable AI (XAI) techniques like SHAP, we are moving toward a future where AI-assisted diagnosis is not only accurate but also transparent and justifiable to medical professionals.
+We aim to empower medical professionals with a guided Decision Support System. By combining persistent SQL storage, interactive data entry, and Explainable AI (SHAP), we provide a tool that not only predicts risk but also explains the underlying clinical factors, fostering trust between the algorithm and the clinician.
+
+---
+
+## 🏥 Clinical Dataset Structure (21 Columns)
+
+The system is now optimized for an expanded dataset including:
+- **Demographics:** Age, Gender.
+- **Vitals:** Blood Pressure (Systolic), BMI, Sleep Hours.
+- **Biochemistry:** Cholesterol Level, Triglyceride Level, Fasting Blood Sugar, CRP Level (Inflammation), Homocysteine Level.
+- **Lifestyle:** Exercise Habits, Smoking, Alcohol Consumption, Stress Level, Sugar Consumption.
+- **History:** Family Heart Disease, Diabetes, Pre-existing High BP, Low HDL, High LDL.
+- **Target:** Heart Disease Status (Yes/No).
 
 ---
 
 ## 🛠 Architectural Decisions & Motivations
 
-Every line of code and every structural choice in this repository was made with specific technical and educational goals in mind.
+### 1. SQL Persistence
+- **Motivation:** Patient data should not be lost between sessions.
+- **Solution:** Integrated an SQLite database (`patients_data.db`). Every interactive prediction is automatically logged with a timestamp, allowing for historical review and batch re-processing.
 
-### 1. Robust Path Management (`pathlib`)
-*   **Motivation:** Traditional string-based path handling (e.g., `../data/file.csv`) is brittle and often fails depending on where the script is executed.
-*   **Solution:** We implemented `pathlib.Path(__file__).resolve()`. This ensures the project root is always identified correctly relative to the script's location, making the entire pipeline portable across Windows, macOS, and Linux.
+### 2. Interactive Decision Support
+- **Motivation:** Clinicians need a guided experience.
+- **Solution:** Option 5 in the dashboard provides a step-by-step input flow with integrated clinical definitions for every parameter.
 
-### 2. Environment Diagnostics & Anaconda Stability
-*   **Motivation:** macOS users often experience "Segmentation Faults" when running TensorFlow within Anaconda, especially when scripts inadvertently use the Anaconda 'base' environment instead of a dedicated one.
-*   **Solution:** We added diagnostic prints to every module that output the exact `sys.executable` being used. If the script detects it is running in the `anaconda3/bin/python` (base) path, it issues a critical warning.
-
-### 3. macOS-Specific Stability Fixes
-*   **KMP_DUPLICATE_LIB_OK=True:** Resolves conflicts when multiple OpenMP runtimes (common in Anaconda/Intel libraries) are loaded.
-*   **OMP_NUM_THREADS=1:** Prevents deadlocks and resource-related crashes by limiting threading during initialization.
-*   **CUDA_VISIBLE_DEVICES=-1:** Forces CPU execution on Mac. Given the small size of tabular medical data, CPU training is nearly as fast as GPU/Metal but significantly more stable across different macOS versions.
-*   **TF_ENABLE_ONEDNN_OPTS=0:** Disables floating-point optimizations that are known to cause arithmetic errors or crashes on certain CPU architectures.
-
-### 4. Robust Explainable AI (SHAP)
-*   **Motivation:** SHAP often fails or produces different output shapes depending on the model (Tree-based vs. Linear vs. KNN).
-*   **Solution:** We built a custom "SHAP Wrapper" logic in Module 03. It automatically detects the model type, chooses the correct Explainer, and slices the output dimensions to ensure it always correctly identifies the "Presence" of heart disease (index 1) regardless of the internal model representation.
-
-### 5. Transition to Keras 3
-*   **Motivation:** Older Keras code is becoming deprecated.
-*   **Solution:** Module 04 follows Keras 3 standards, using explicit `Input()` layers. This ensures the model is future-proof and compatible with the latest TensorFlow releases.
-
-### 6. Line-by-Line English Documentation
-*   **Motivation:** To provide maximum educational value and ensure the logic is clear to developers of all levels.
-*   **Solution:** Every single line of code in the `notebooks/` directory is followed by a `#` comment in English, explaining its purpose and context.
+### 3. Data Integrity (Missing Values)
+- **Motivation:** Real-world medical data is often incomplete.
+- **Solution:** Module 01 now strictly enforces `df.dropna()` to ensure the model is trained only on high-quality, complete clinical records.
 
 ---
 
-## 📂 Pipeline Deep-Dive
+## 📂 Pipeline Modules
 
-### Module 01: EDA & Preprocessing
-The foundation of the project. It focuses on "Data Quality First."
-- **Motivations:** Raw data is messy. We implement categorical encoding and numerical scaling within a `ColumnTransformer` to ensure zero data leakage between training and testing sets.
-- **Output:** Processed `.npz` and `.npy` artifacts for subsequent modules.
-
-### Module 02: Classical Machine Learning
-Baselining and model selection.
-- **Motivations:** We don't just pick a model; we compete them. Logistic Regression, KNN, SVM, and Random Forest are tuned via `GridSearchCV`.
-- **Focus:** We prioritize **Recall**. In heart disease prediction, a "False Negative" (missing a sick patient) is far more dangerous than a "False Positive."
-
-### Module 03: Explainability (SHAP)
-Opening the "Black Box."
-- **Motivations:** Doctors don't trust a number; they trust a reason. This module uses SHAP values to show which features (e.g., Cholesterol, Chest Pain type) most influenced the model's decision for a specific patient.
-
-### Module 04: Deep Learning (MLP)
-Advanced predictive modeling.
-- **Motivations:** For complex patterns, we use a Multi-Layer Perceptron.
-- **Robustness:** We use heavy regularization (L2, Dropout, Batch Normalization) to prevent the neural network from overfitting on this relatively small tabular dataset.
-
-### Module 05: Real-World Inference & SQL Storage
-The final utility of the project.
-- **Interactive Input:** This module allows medical professionals to manually enter a patient's clinical data, with on-screen explanations for every parameter.
-- **SQL Integration:** All entered patient data and their corresponding predictions are automatically saved to a local SQLite database (`patients_data.db`).
-- **Batch Processing:** A dedicated feature allows re-running predictions for all patients stored in the database, ensuring consistency if the underlying models are updated.
-- **Value:** It demonstrates the transition from a training pipeline to a functional, persistent medical decision-support tool.
+- **Module 01: EDA & Preprocessing:** Handles the new 21-column schema and removes missing values.
+- **Module 02: Classical ML:** Trains and tunes Logistic Regression, KNN, SVM, and Random Forest.
+- **Module 03: Explainability:** Uses SHAP to visualize the weight of clinical factors.
+- **Module 04: Deep Learning:** Multi-Layer Perceptron with robust regularization.
+- **Module 05: Real-World Inference:** The interactive interface for patient data entry and SQL storage.
+- **Main Dashboard (`main.py`):** The central command center with match-case navigation.
 
 ---
 
 ## 🚀 Getting Started
 
-### 1. The Right Way (macOS / Linux)
-We provide a dedicated setup script to bypass common environment issues:
+### 1. Environment Setup
 ```bash
 chmod +x setup_mac.sh
 ./setup_mac.sh
@@ -83,64 +59,26 @@ conda activate heart_disease
 python -m pip install -r requirements.txt
 ```
 
-### 2. Manual Installation
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Unified Dashboard (Recommended)
-You can run the entire system through the integrated CLI dashboard:
+### 2. Integrated Dashboard
+Launch the unified interface:
 ```bash
 python main.py
 ```
-This provides a guided menu to run each module, view the clinical glossary, and make predictions.
-
-### 4. Manual Execution Order
-Alternatively, run the modules in sequence:
-1. `python notebooks/01_EDA_Preprocessing.py`
-2. `python notebooks/02_ML_Classic.py`
-3. `python notebooks/03_Explainability.py`
-4. `python notebooks/04_Deep_Learning.py`
-5. `python notebooks/05_Inference.py`
 
 ---
 
-## 🏥 How to Predict Heart Disease for a New Patient
+## 🛑 Maintenance & Troubleshooting
 
-The system provides a guided, interactive way to predict heart disease for new patients.
+### Reset Options
+- **Option 'd':** Deletes the SQL database if you want to clear patient history.
+- **Option 'r':** Resets all ML artifacts (models/preprocessors). Use this if you change your environment or see an `AttributeError`.
 
-### Using the Dashboard:
-1.  Run the dashboard: `python main.py`.
-2.  Select **Option 5** (Predict for a New Patient).
-3.  The system will prompt you for each clinical value, providing a description of what it means (e.g., "Thallium Stress Test Result").
-4.  After the final input, the system displays the prediction, confidence levels, and clinical suggestions.
-5.  The data is automatically saved to the SQL database.
-
-### Batch Predictions:
-1.  Select **Option 6** in the dashboard.
-2.  The system will load all previously entered patients from the SQL database and display their updated predictions.
-
----
-
-## 🛑 Critical Troubleshooting
-
-### Segmentation Fault on Mac?
-**NEVER** run the scripts like this: `/opt/anaconda3/bin/python notebooks/04_Deep_Learning.py`.
-**ALWAYS** run them like this:
-1. `conda activate heart_disease`
-2. `python notebooks/04_Deep_Learning.py`
-
-Running with an absolute path to the Anaconda base Python will bypass your environment and trigger a crash.
-
-### ⚠️ Library Versioning & "AttributeError"
-Machine Learning models saved as `.joblib` or `.pkl` are sensitive to library versions. If you see an error like `AttributeError: Can't get attribute '_RemainderColsList'`:
-1.  It means the current `scikit-learn` version is different from the one that saved the artifacts.
-2.  **Fix:** Run the pipeline from the start (**Option 1 and 2** in the dashboard) to regenerate artifacts for your specific system.
+### macOS SegFaults
+The system includes `KMP_DUPLICATE_LIB_OK`, `OMP_NUM_THREADS=1`, and `CUDA_VISIBLE_DEVICES=-1` to ensure maximum stability on Mac/Anaconda.
 
 ---
 
 ## 🗺 Roadmap
-- [ ] Integration of SMOTE for better class balancing.
-- [ ] Deployment of the pipeline as a REST API (FastAPI).
-- [ ] Frontend dashboard for real-time patient risk assessment.
-- [ ] Cross-validation for the Deep Learning module.
+- [ ] Integration of SMOTE for class balancing.
+- [ ] Automated PDF Report Generation for patients.
+- [ ] REST API integration for Hospital Information Systems (HIS).
