@@ -63,10 +63,12 @@ Advanced predictive modeling.
 - **Motivations:** For complex patterns, we use a Multi-Layer Perceptron.
 - **Robustness:** We use heavy regularization (L2, Dropout, Batch Normalization) to prevent the neural network from overfitting on this relatively small tabular dataset.
 
-### Module 05: Real-World Inference
+### Module 05: Real-World Inference & SQL Storage
 The final utility of the project.
-- **What it does:** This module loads the best-performing model and the preprocessor to predict the risk for a **new patient** based on clinical input.
-- **Value:** It demonstrates the transition from a training pipeline to a functional medical decision-support tool.
+- **Interactive Input:** This module allows medical professionals to manually enter a patient's clinical data, with on-screen explanations for every parameter.
+- **SQL Integration:** All entered patient data and their corresponding predictions are automatically saved to a local SQLite database (`patients_data.db`).
+- **Batch Processing:** A dedicated feature allows re-running predictions for all patients stored in the database, ensuring consistency if the underlying models are updated.
+- **Value:** It demonstrates the transition from a training pipeline to a functional, persistent medical decision-support tool.
 
 ---
 
@@ -105,17 +107,18 @@ Alternatively, run the modules in sequence:
 
 ## 🏥 How to Predict Heart Disease for a New Patient
 
-Once you have run the training modules (01 and 02), you can use `notebooks/05_Inference.py` to make predictions on new data.
+The system provides a guided, interactive way to predict heart disease for new patients.
 
-### Steps to predict:
-1.  Open `notebooks/05_Inference.py`.
-2.  Locate the `new_patient_data` dictionary.
-3.  Modify the clinical values (Age, Cholesterol, etc.) to match your patient's data.
-4.  Run the script:
-    ```bash
-    python notebooks/05_Inference.py
-    ```
-5.  The script will output the probability of heart disease presence and the final diagnostic recommendation.
+### Using the Dashboard:
+1.  Run the dashboard: `python main.py`.
+2.  Select **Option 5** (Predict for a New Patient).
+3.  The system will prompt you for each clinical value, providing a description of what it means (e.g., "Thallium Stress Test Result").
+4.  After the final input, the system displays the prediction, confidence levels, and clinical suggestions.
+5.  The data is automatically saved to the SQL database.
+
+### Batch Predictions:
+1.  Select **Option 6** in the dashboard.
+2.  The system will load all previously entered patients from the SQL database and display their updated predictions.
 
 ---
 

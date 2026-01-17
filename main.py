@@ -18,6 +18,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Reduce TensorFlow logging noise
 # Define project paths                                                  # Path Definition Section
 PROJECT_ROOT = Path(__file__).resolve().parent # Identify the project root directory
 NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks" # Define the directory containing modules
+ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the directory for ML artifacts
 # ------------------------------
 
 def clear_screen(): # Define a function to clear the terminal screen
@@ -28,11 +29,14 @@ def print_header(title): # Define a function to print a styled header
     print(f" {title.center(58)} ") # Print centered title
     print("=" * 60) # Print decorative line
 
-def run_module(script_name): # Define a function to run a specific module script
+def run_module(script_name, args=None): # Define a function to run a specific module script
     script_path = NOTEBOOKS_DIR / script_name # Construct the full path to the script
     print(f"\n[EXECUTION] Starting {script_name}...") # Print execution start message
+    cmd = [sys.executable, str(script_path)] # Prepare the base command
+    if args: # Check if additional arguments are provided
+        cmd.extend(args) # Add arguments to the command
     try: # Start error handling block
-        subprocess.run([sys.executable, str(script_path)], check=True) # Run the script using the current Python interpreter
+        subprocess.run(cmd, check=True) # Run the script using the current Python interpreter
         print(f"\n[SUCCESS] {script_name} completed successfully.") # Print success message
     except subprocess.CalledProcessError as e: # Catch script execution errors
         print(f"\n[ERROR] Module {script_name} failed with exit code {e.returncode}.") # Print error message
@@ -76,15 +80,16 @@ def main_menu(): # Define the main menu loop
         print("2. [Pipeline] Train & Tune Classical ML Models (Module 02)") # Option 2
         print("3. [XAI] View Model Explainability / SHAP Analysis (Module 03)") # Option 3
         print("4. [Deep Learning] Train Neural Network (Module 04)") # Option 4
-        print("5. [Prediction] Predict for a New Patient (Module 05)") # Option 5
-        print("6. [Knowledge] Clinical Data Glossary") # Option 6
+        print("5. [Prediction] Predict for a New Patient (Manual Input & Save)") # Option 5
+        print("6. [Prediction] Batch Predict all Patients in Database") # Option 6
+        print("7. [Knowledge] Clinical Data Glossary") # Option 7
         print("r. [Maintenance] Reset System Artifacts") # Reset option
         print("q. Exit System") # Exit option
         print("-" * 60) # Print separator
         print("NOTE: If you see 'AttributeError' or 'Compatibility Issue', run 1 and 2.") # Helpful tip
         print("-" * 60) # Print separator
 
-        choice = input("Select an option (1-6, r or q): ").lower() # Get user choice and convert to lowercase
+        choice = input("Select an option (1-7, r or q): ").lower() # Get user choice and convert to lowercase
 
         match choice: # Use match-case for structural navigation
             case '1': # Case for EDA
@@ -102,7 +107,10 @@ def main_menu(): # Define the main menu loop
             case '5': # Case for Inference
                 run_module("05_Inference.py") # Run Module 05
                 input("\nPress Enter to continue...") # Pause
-            case '6': # Case for Glossary
+            case '6': # Case for Batch Prediction
+                run_module("05_Inference.py", args=["--batch"]) # Run Module 05 in batch mode
+                input("\nPress Enter to continue...") # Pause
+            case '7': # Case for Glossary
                 show_clinical_guide() # Show the glossary
             case 'r': # Case for Reset
                 reset_artifacts() # Call reset function
