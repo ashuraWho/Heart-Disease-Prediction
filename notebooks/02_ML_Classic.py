@@ -47,10 +47,15 @@ ARTIFACTS_DIR = PROJECT_ROOT / "artifacts" # Define the artifacts directory path
 # LOAD ARTIFACTS        # Load Artifacts Header
 # ===================== # Header Section
 
-X_train = np.load(ARTIFACTS_DIR / "X_train.npz")["X"] # Load preprocessed training features
-X_test  = np.load(ARTIFACTS_DIR / "X_test.npz")["X"] # Load preprocessed testing features
-y_train = np.load(ARTIFACTS_DIR / "y_train.npy") # Load training labels
-y_test  = np.load(ARTIFACTS_DIR / "y_test.npy") # Load testing labels
+try: # Start safety block for library version compatibility
+    X_train = np.load(ARTIFACTS_DIR / "X_train.npz")["X"] # Load preprocessed training features
+    X_test  = np.load(ARTIFACTS_DIR / "X_test.npz")["X"] # Load preprocessed testing features
+    y_train = np.load(ARTIFACTS_DIR / "y_train.npy") # Load training labels
+    y_test  = np.load(ARTIFACTS_DIR / "y_test.npy") # Load testing labels
+except Exception as e: # Catch loading errors
+    print(f"ERROR: Could not load artifacts: {e}") # Print error
+    print(">>> Please run Module 01 first.") # Print fix
+    sys.exit(1) # Exit
 
 print("Artifacts loaded successfully") # Print confirmation message for artifact loading
 
@@ -66,12 +71,17 @@ def evaluate_model(model, X_test, y_test): # Define a function to evaluate model
     else: # If model doesn't support predict_proba
         y_proba = model.decision_function(X_test) # Use decision function scores instead
 
+    cm = confusion_matrix(y_test, y_pred) # Calculate confusion matrix
+    tn, fp, fn, tp = cm.ravel() # Extract matrix components to diagnose False Positives (FP)
+
     return { # Return a dictionary of performance metrics
         "Accuracy": accuracy_score(y_test, y_pred), # Calculate Accuracy
-        "Precision": precision_score(y_test, y_pred), # Calculate Precision
-        "Recall": recall_score(y_test, y_pred), # Calculate Recall
-        "F1": f1_score(y_test, y_pred), # Calculate F1-Score
-        "ROC-AUC": roc_auc_score(y_test, y_proba) # Calculate ROC-AUC Score
+        "Precision": precision_score(y_test, y_pred, zero_division=0), # Calculate Precision (focus on FP)
+        "Recall": recall_score(y_test, y_pred, zero_division=0), # Calculate Recall (focus on FN)
+        "F1": f1_score(y_test, y_pred, zero_division=0), # Calculate F1-Score (balance)
+        "ROC-AUC": roc_auc_score(y_test, y_proba), # Calculate ROC-AUC Score
+        "FP": fp, # Return count of False Positives for diagnostics
+        "FN": fn # Return count of False Negatives for diagnostics
     } # End of dictionary
 
 # ===================== # Header Section
@@ -124,13 +134,14 @@ best_models = {} # Initialize dictionary to store the best tuned models
 # ===================== # Header Section
 # TRAINING LOOP         # Training Loop Header
 # ===================== # Header Section
+# We use 'f1' scoring to better balance Precision and Recall, reducing excessive False Positives.
 
 for name, (model, params) in models.items(): # Iterate through each model and its parameter grid
     gs = GridSearchCV( # Initialize Grid Search Cross-Validation
         model, # The model to tune
         params, # The hyperparameter grid
         cv=cv, # The CV strategy
-        scoring="recall", # Optimize for Recall (important for medical diagnosis)
+        scoring="f1", # Optimize for F1-Score (balances FP and FN) as requested to reduce False Positives
         n_jobs=-1 # Use all available CPU cores
     ) # End of GridSearchCV init
     gs.fit(X_train, y_train) # Fit GridSearchCV to training data
@@ -147,24 +158,13 @@ print("\nFinal Model Comparison:") # Print header for comparison table
 print(results_df) # Print the comparison table
 
 # ===================== # Header Section
-# ROC CURVES            # ROC Curves Header
-# ===================== # Header Section
-
-plt.figure(figsize=(8, 6)) # Create a new figure for ROC curves
-for name, model in best_models.items(): # Iterate through best models
-    RocCurveDisplay.from_estimator(model, X_test, y_test, name=name) # Plot ROC curve for each model
-
-plt.title("ROC Curve Comparison") # Set the title for the ROC plot
-plt.show() # Display the ROC plot
-
-# ===================== # Header Section
 # BEST MODEL            # Best Model Header
 # ===================== # Header Section
 
-best_model_name = results_df["Recall"].idxmax() # Identify the model with the highest Recall score
+best_model_name = results_df["F1"].idxmax() # Identify the model with the highest F1 score
 best_model = best_models[best_model_name] # Retrieve the best model instance
 
-print(f"\nBest model by Recall: {best_model_name}") # Print the name of the best model based on Recall
+print(f"\nBest model by F1-Score: {best_model_name}") # Print the name of the best model
 
 # ===================== # Header Section
 # CONFUSION MATRIX      # Confusion Matrix Header
@@ -173,6 +173,8 @@ print(f"\nBest model by Recall: {best_model_name}") # Print the name of the best
 cm = confusion_matrix(y_test, best_model.predict(X_test)) # Calculate the confusion matrix for the best model
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues") # Visualize the confusion matrix as a heatmap
 plt.title(f"Confusion Matrix – {best_model_name}") # Set title for confusion matrix plot
+plt.xlabel("Predicted") # Set X axis label
+plt.ylabel("Actual") # Set Y axis label
 plt.show() # Display the confusion matrix plot
 
 # ===================== # Header Section

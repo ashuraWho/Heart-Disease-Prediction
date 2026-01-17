@@ -1,0 +1,6 @@
+Age,Gender,Blood Pressure,Cholesterol Level,Exercise Habits,Smoking,Family Heart Disease,Diabetes,BMI,High Blood Pressure,Low HDL Cholesterol,High LDL Cholesterol,Alcohol Consumption,Stress Level,Sleep Hours,Sugar Consumption,Triglyceride Level,Fasting Blood Sugar,CRP Level,Homocysteine Level,Heart Disease Status
+45,Male,120,200,Medium,No,No,No,24.5,No,No,No,Low,Low,7,Low,150,90,0.5,10,No
+55,Female,140,240,Low,Yes,Yes,Yes,28.2,Yes,Yes,Yes,Medium,High,6,High,200,110,1.2,15,Yes
+65,Male,130,220,High,No,Yes,No,26.1,No,No,Yes,None,Medium,8,Medium,180,95,0.8,12,Yes
+40,Female,110,180,Medium,No,No,No,22.1,No,No,No,None,Low,7,Low,130,85,0.3,8,No
+50,Male,150,260,Low,Yes,No,Yes,30.5,Yes,Yes,No,High,High,5,High,220,120,2.0,18,Yes

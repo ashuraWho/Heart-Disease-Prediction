@@ -26,7 +26,7 @@ def clear_screen(): # Define a function to clear the terminal screen
     os.system('cls' if os.name == 'nt' else 'clear') # Execute clear command based on OS
 
 def print_header(title): # Define a function to print a styled header
-    print("=" * 60) # Print decorative line
+    print("\n" + "=" * 60) # Print decorative line
     print(f" {title.center(58)} ") # Print centered title
     print("=" * 60) # Print decorative line
 
@@ -46,100 +46,116 @@ def show_clinical_guide(): # Define a function to display clinical parameter exp
     clear_screen() # Clear the terminal
     print_header("CLINICAL DATA GLOSSARY & GUIDE") # Print glossary header
     guide = { # Define dictionary with clinical parameter explanations
-        "Age": "Patient's age in years.", # Explanation for Age
-        "Gender": "Patient's biological gender (Male/Female).", # Explanation for Gender
-        "Blood Pressure": "Systolic blood pressure (mm Hg).", # Explanation for Blood Pressure
-        "Cholesterol Level": "Total serum cholesterol level (mg/dl).", # Explanation for Cholesterol
-        "Exercise Habits": "Level of regular physical activity (Low, Medium, High).", # Explanation for Exercise
-        "Smoking": "Current smoking status (Yes/No).", # Explanation for Smoking
-        "Family Heart Disease": "History of heart disease in immediate family (Yes/No).", # Explanation for Family History
-        "Diabetes": "Whether the patient has a diabetes diagnosis (Yes/No).", # Explanation for Diabetes
-        "BMI": "Body Mass Index (weight / height^2).", # Explanation for BMI
-        "High Blood Pressure": "Pre-existing diagnosis of hypertension (Yes/No).", # Explanation for High BP
-        "Low HDL Cholesterol": "Presence of low 'good' cholesterol (Yes/No).", # Explanation for Low HDL
-        "High LDL Cholesterol": "Presence of high 'bad' cholesterol (Yes/No).", # Explanation for High LDL
-        "Alcohol Consumption": "Level of alcohol intake (None, Low, Medium, High).", # Explanation for Alcohol
-        "Stress Level": "Reported psychological stress level (Low, Medium, High).", # Explanation for Stress
-        "Sleep Hours": "Average hours of sleep per night.", # Explanation for Sleep
-        "Sugar Consumption": "Dietary sugar intake level (Low, Medium, High).", # Explanation for Sugar
-        "Triglyceride Level": "Serum triglyceride level (mg/dl).", # Explanation for Triglycerides
-        "Fasting Blood Sugar": "Blood sugar level after fasting.", # Explanation for Fasting Sugar
-        "CRP Level": "C-reactive protein level (marker of inflammation).", # Explanation for CRP
-        "Homocysteine Level": "Homocysteine level (marker for vascular health)." # Explanation for Homocysteine
+        "Age": "Patient's age in years.",
+        "Gender": "Biological gender (Male/Female).",
+        "Blood Pressure": "Systolic blood pressure (mm Hg).",
+        "Cholesterol Level": "Total serum cholesterol level (mg/dl).",
+        "Exercise Habits": "Regular physical activity level (Low, Medium, High).",
+        "Smoking": "Current smoking status (Yes/No).",
+        "Family Heart Disease": "History of heart disease in family (Yes/No).",
+        "Diabetes": "Diabetes diagnosis (Yes/No).",
+        "BMI": "Body Mass Index (weight / height^2).",
+        "High Blood Pressure": "Pre-existing hypertension (Yes/No).",
+        "Low HDL Cholesterol": "Presence of low 'good' cholesterol (Yes/No).",
+        "High LDL Cholesterol": "Presence of high 'bad' cholesterol (Yes/No).",
+        "Alcohol Consumption": "Alcohol intake level (None, Low, Medium, High).",
+        "Stress Level": "Reported psychological stress (Low, Medium, High).",
+        "Sleep Hours": "Average hours of sleep per night.",
+        "Sugar Consumption": "Dietary sugar intake (Low, Medium, High).",
+        "Triglyceride Level": "Serum triglyceride level (mg/dl).",
+        "Fasting Blood Sugar": "Blood sugar level after fasting.",
+        "CRP Level": "C-reactive protein level (inflammation marker).",
+        "Homocysteine Level": "Homocysteine level (vascular health marker)."
     } # End of guide dictionary
     for key, value in guide.items(): # Iterate through the guide dictionary
         print(f"► {key.ljust(20)}: {value}") # Print formatted explanation
     input("\nPress Enter to return to main menu...") # Wait for user input to continue
+
+def eda_interactive_menu(): # Define sub-menu for EDA plots
+    while True: # Infinite loop
+        clear_screen() # Clear
+        print_header("EDA & DATA VISUALIZATION") # Header
+        print("1. Show Correlation Matrix (Numerical Heatmap)") # Option 1
+        print("2. Show Target Variable Distribution") # Option 2
+        print("3. Show Individual Feature Plots (One by One)") # Option 3
+        print("q. Return to Main Menu") # Return
+
+        choice = input("\nSelect an option: ").lower() # Get choice
+        match choice: # Match-case
+            case '1': run_module("01_EDA_Preprocessing.py", args=["--plots"]) # Pass arg for matrix
+            case '2': run_module("01_EDA_Preprocessing.py", args=["--plots"]) # Note: Logic in 01 handles it
+            case '3': run_module("01_EDA_Preprocessing.py", args=["--plots"]) # Pass arg
+            case 'q': break # Exit sub-menu
+            case _: print("Invalid selection.")
 
 def reset_artifacts(): # Define a function to clear all generated artifacts
     if ARTIFACTS_DIR.exists(): # Check if directory exists
         import shutil # Import shutil for folder deletion
         shutil.rmtree(ARTIFACTS_DIR) # Delete the artifacts folder and its contents
         ARTIFACTS_DIR.mkdir() # Recreate the empty artifacts folder
-        print("\n[RESET] All artifacts have been deleted. You MUST run the pipeline from Module 01.") # Print status
+        print("\n[RESET] All artifacts deleted. You MUST run Module 01 & 02.") # Status
     else: # If directory doesn't exist
-        print("\n[INFO] No artifacts found to delete.") # Print info
+        print("\n[INFO] No artifacts folder found.") # Info
 
 def delete_database(): # Define function to delete the SQL database
     if DB_PATH.exists(): # Check if database file exists
         os.remove(DB_PATH) # Delete the file
-        print(f"\n[DELETE] Database '{DB_PATH.name}' has been successfully deleted.") # Print status
+        print(f"\n[DELETE] Database '{DB_PATH.name}' deleted.") # Status
     else: # If file doesn't exist
-        print("\n[INFO] No database found to delete.") # Print info
+        print("\n[INFO] No database found.") # Info
 
 def main_menu(): # Define the main menu loop
     while True: # Start infinite loop for the menu
         clear_screen() # Clear the terminal
         print_header("HEART DISEASE PREDICTION SYSTEM - CLINICAL DASHBOARD") # Print system header
-        print("1. [Pipeline] Run EDA & Preprocessing (Module 01)") # Option 1
-        print("2. [Pipeline] Train & Tune Classical ML Models (Module 02)") # Option 2
-        print("3. [XAI] View Model Explainability / SHAP Analysis (Module 03)") # Option 3
-        print("4. [Deep Learning] Train Neural Network (Module 04)") # Option 4
-        print("5. [Prediction] Predict for a New Patient (Manual Input & Save)") # Option 5
-        print("6. [Prediction] Batch Predict all Patients in Database") # Option 6
-        print("7. [Knowledge] Clinical Data Glossary") # Option 7
-        print("d. [Maintenance] Delete SQL Database") # Delete DB option
-        print("r. [Maintenance] Reset System Artifacts") # Reset option
+        print("1. [Data] EDA & Visual Analysis (Interactive Plots)") # Option 1
+        print("2. [Training] Train Classical ML Models (Balanced Scoring)") # Option 2
+        print("3. [XAI] Explainability (SHAP Analysis) - Why the prediction?") # Option 3
+        print("4. [Research] Deep Learning Approach (Neural Network)") # Option 4
+        print("5. [Patient] Predict for a New Patient (Manual Entry & SQL Save)") # Option 5
+        print("6. [History] Batch Predict all Patients in Database") # Option 6
+        print("7. [Knowledge] Clinical Glossary (Definitions)") # Option 7
+        print("d. [Maintenance] Delete SQL Patient Database") # Delete DB option
+        print("r. [Maintenance] Reset ML Artifacts (Regenerate Models)") # Reset option
         print("q. Exit System") # Exit option
         print("-" * 60) # Print separator
-        print("NOTE: If you see 'AttributeError' or 'Compatibility Issue', run 1 and 2.") # Helpful tip
-        print("-" * 60) # Print separator
+        print("Tip: Run Module 1 & 2 first to enable Predictions and XAI.") # Helpful tip
 
-        choice = input("Select an option (1-7, d, r or q): ").lower() # Get user choice and convert to lowercase
+        choice = input("\nSelect an option (1-7, d, r or q): ").lower() # Get user choice
 
         match choice: # Use match-case for structural navigation
-            case '1': # Case for EDA
-                run_module("01_EDA_Preprocessing.py") # Run Module 01
-                input("\nPress Enter to continue...") # Pause
-            case '2': # Case for Classic ML
-                run_module("02_ML_Classic.py") # Run Module 02
-                input("\nPress Enter to continue...") # Pause
-            case '3': # Case for Explainability
-                run_module("03_Explainability.py") # Run Module 03
-                input("\nPress Enter to continue...") # Pause
-            case '4': # Case for Deep Learning
-                run_module("04_Deep_Learning.py") # Run Module 04
-                input("\nPress Enter to continue...") # Pause
-            case '5': # Case for Inference
-                run_module("05_Inference.py") # Run Module 05
-                input("\nPress Enter to continue...") # Pause
-            case '6': # Case for Batch Prediction
-                run_module("05_Inference.py", args=["--batch"]) # Run Module 05 in batch mode
-                input("\nPress Enter to continue...") # Pause
-            case '7': # Case for Glossary
-                show_clinical_guide() # Show the glossary
-            case 'd': # Case for Delete DB
-                delete_database() # Call delete DB function
-                input("\nPress Enter to continue...") # Pause
-            case 'r': # Case for Reset
-                reset_artifacts() # Call reset function
-                input("\nPress Enter to continue...") # Pause
-            case 'q': # Case for Exit
-                print("Exiting system. Stay healthy!") # Print goodbye message
-                break # Exit the loop
-            case _: # Default case for invalid input
-                print("Invalid selection. Please try again.") # Print error
-                input("\nPress Enter to continue...") # Pause
+            case '1': eda_interactive_menu() # Run EDA sub-menu
+            case '2': # Classic ML
+                run_module("02_ML_Classic.py") # Run
+                input("\nPress Enter...") # Pause
+            case '3': # Explainability
+                print("\n[XAI] This module explains which features weighed most in the model's decision.")
+                run_module("03_Explainability.py") # Run
+                input("\nPress Enter...") # Pause
+            case '4': # Deep Learning
+                print("\n[DL] Training an advanced neural network for complex patterns.")
+                run_module("04_Deep_Learning.py") # Run
+                input("\nPress Enter...") # Pause
+            case '5': # Inference
+                run_module("05_Inference.py") # Run
+                input("\nPress Enter...") # Pause
+            case '6': # Batch Prediction
+                run_module("05_Inference.py", args=["--batch"]) # Run
+                input("\nPress Enter...") # Pause
+            case '7': # Glossary
+                show_clinical_guide() # Show
+            case 'd': # Delete DB
+                delete_database() # Call
+                input("\nPress Enter...") # Pause
+            case 'r': # Reset
+                reset_artifacts() # Call
+                input("\nPress Enter...") # Pause
+            case 'q': # Exit
+                print("Exiting. Stay healthy!") # Goodbye
+                break # Exit
+            case _: # Invalid
+                print("Invalid choice.") # Error
+                input("\nPress Enter...") # Pause
 
-if __name__ == "__main__": # Check if the script is run directly
-    main_menu() # Start the main menu
+if __name__ == "__main__": # Entry
+    main_menu() # Start
