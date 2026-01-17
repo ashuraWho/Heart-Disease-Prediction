@@ -39,8 +39,14 @@ if not (ARTIFACTS_DIR / "best_model_classic.joblib").exists(): # Verify model ex
     print("ERROR: best_model_classic.joblib not found. Please run Module 02 first.") # Print error message
     sys.exit(1) # Exit script if missing
 
-preprocessor = load(ARTIFACTS_DIR / "preprocessor.joblib") # Load the saved preprocessing pipeline
-model = load(ARTIFACTS_DIR / "best_model_classic.joblib") # Load the best classical model (e.g., KNN, RF, or LR)
+try: # Start safety block for library version compatibility
+    preprocessor = load(ARTIFACTS_DIR / "preprocessor.joblib") # Load the saved preprocessing pipeline
+    model = load(ARTIFACTS_DIR / "best_model_classic.joblib") # Load the best classical model (e.g., KNN, RF, or LR)
+except (AttributeError, KeyError, Exception) as e: # Catch errors caused by scikit-learn version mismatches
+    print(f"ERROR: Compatibility issue detected while loading artifacts: {e}") # Print the error
+    print("\n[CRITICAL] Your environment version of scikit-learn likely differs from the one that saved the artifacts.") # Suggest cause
+    print(">>> FIX: Please run 'Module 01' and 'Module 02' again to regenerate artifacts for your system.") # Suggest fix
+    sys.exit(1) # Exit the script
 
 print("Inference artifacts loaded successfully.") # Print confirmation message
 

@@ -129,6 +129,11 @@ Once you have run the training modules (01 and 02), you can use `notebooks/05_In
 
 Running with an absolute path to the Anaconda base Python will bypass your environment and trigger a crash.
 
+### ⚠️ Library Versioning & "AttributeError"
+Machine Learning models saved as `.joblib` or `.pkl` are sensitive to library versions. If you see an error like `AttributeError: Can't get attribute '_RemainderColsList'`:
+1.  It means the current `scikit-learn` version is different from the one that saved the artifacts.
+2.  **Fix:** Run the pipeline from the start (**Option 1 and 2** in the dashboard) to regenerate artifacts for your specific system.
+
 ---
 
 ## 🗺 Roadmap

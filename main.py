@@ -59,6 +59,15 @@ def show_clinical_guide(): # Define a function to display clinical parameter exp
         print(f"► {key.ljust(15)}: {value}") # Print formatted explanation
     input("\nPress Enter to return to main menu...") # Wait for user input to continue
 
+def reset_artifacts(): # Define a function to clear all generated artifacts
+    if ARTIFACTS_DIR.exists(): # Check if directory exists
+        import shutil # Import shutil for folder deletion
+        shutil.rmtree(ARTIFACTS_DIR) # Delete the artifacts folder and its contents
+        ARTIFACTS_DIR.mkdir() # Recreate the empty artifacts folder
+        print("\n[RESET] All artifacts have been deleted. You MUST run the pipeline from Module 01.") # Print status
+    else: # If directory doesn't exist
+        print("\n[INFO] No artifacts found to delete.") # Print info
+
 def main_menu(): # Define the main menu loop
     while True: # Start infinite loop for the menu
         clear_screen() # Clear the terminal
@@ -69,10 +78,13 @@ def main_menu(): # Define the main menu loop
         print("4. [Deep Learning] Train Neural Network (Module 04)") # Option 4
         print("5. [Prediction] Predict for a New Patient (Module 05)") # Option 5
         print("6. [Knowledge] Clinical Data Glossary") # Option 6
+        print("r. [Maintenance] Reset System Artifacts") # Reset option
         print("q. Exit System") # Exit option
         print("-" * 60) # Print separator
+        print("NOTE: If you see 'AttributeError' or 'Compatibility Issue', run 1 and 2.") # Helpful tip
+        print("-" * 60) # Print separator
 
-        choice = input("Select an option (1-6 or q): ").lower() # Get user choice and convert to lowercase
+        choice = input("Select an option (1-6, r or q): ").lower() # Get user choice and convert to lowercase
 
         match choice: # Use match-case for structural navigation
             case '1': # Case for EDA
@@ -92,6 +104,9 @@ def main_menu(): # Define the main menu loop
                 input("\nPress Enter to continue...") # Pause
             case '6': # Case for Glossary
                 show_clinical_guide() # Show the glossary
+            case 'r': # Case for Reset
+                reset_artifacts() # Call reset function
+                input("\nPress Enter to continue...") # Pause
             case 'q': # Case for Exit
                 print("Exiting system. Stay healthy!") # Print goodbye message
                 break # Exit the loop
