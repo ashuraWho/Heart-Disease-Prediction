@@ -19,7 +19,7 @@ conda create -n heart_disease python=3.10 -y
 echo "[2/4] Activation Instructions:"
 echo "    >>> To finish setup, you MUST RUN these commands manually in your terminal:"
 echo "    >>> 1. conda activate heart_disease"
-echo "    >>> 2. python -m pip install pandas numpy matplotlib seaborn scikit-learn joblib shap tensorflow rich"
+echo "    >>> 2. python -m pip install pandas numpy matplotlib seaborn scikit-learn joblib shap tensorflow rich xgboost lightgbm catboost sqlalchemy imblearn"
 
 # 3. Special instructions for Apple Silicon (M1/M2/M3/M4)
 echo "[3/4] Note for Apple Silicon Users:"
