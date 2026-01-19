@@ -804,7 +804,7 @@ Se mancano, riesegui STEP 1 e STEP 2.
 
 ### Performance Attuali del Sistema
 
-**Dati test (49,205 casi, 20% del dataset)**:
+**Dati test (49 205 casi, 20% del dataset)**:
 
 | Metrica | Valore | Interpretazione |
 |---------|--------|-----------------|
