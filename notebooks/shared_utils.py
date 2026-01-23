@@ -99,7 +99,7 @@ def init_db():
 
 # --- 6. COMMON UI FUNCTIONS ---
 def clear_screen():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    os.system('cls' if os.name == 'nt' else 'clear') # Clear terminal screen
 
 def print_header(title: str):
     console.print(f"\n[bold magenta]{'=' * 60}[/bold magenta]")
